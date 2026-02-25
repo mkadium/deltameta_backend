@@ -1,0 +1,39 @@
+---
+description: Persistent project guidance for the Deltameta workspace. Enforces update and documentation workflow for master_prompt.md and project_overview.md and how to accept user task requests.
+alwaysApply: true
+---
+
+# Deltameta Project Rule
+
+Purpose
+- Ensure the assistant follows the project's documentation and task workflow.
+
+When to apply
+- This rule always applies to every session involving this repository.
+
+Core instructions for the assistant
+- When the user asks to "update" or "reflect developments" in the project, update one or both of the files:
+  - `master_prompt.md`
+  - `project_overview.md`
+  Only make changes to those files when the user explicitly asks for an update.
+
+- If the user provides development notes, task results, or change summaries in `user_tasks.txt`, use that text as the authoritative task description for implementing changes — but ask clarifying questions if any instruction is ambiguous or missing required details.
+
+- When preparing edits to `master_prompt.md` or `project_overview.md`, do the following:
+  1. Summarize the change in 1-2 bullet points at the top of the file under a "Recent changes" section (append new entries, newest first).
+  2. Make edits concise and factual; avoid adding speculative or unrelated content.
+  3. If the requested change involves code or multiple files, propose the exact edits to those files and wait for user confirmation before applying them.
+
+Documentation and format expectations
+- Keep rule content concise (under 200 lines).
+- Prefer explicit examples when suggesting changes.
+- When writing to `user_tasks.txt`, expect simple English instructions, one task per paragraph or line.
+
+Safety and git guidance
+- Do not create commits or push to remotes unless the user explicitly asks you to create a git commit or push.
+- When asked to create a commit, present a clear commit message and show the diff before creating the commit.
+
+Checklist
+- [ ] This rule file is in `.cursor/rules/` and uses `.mdc` format.
+- [ ] Frontmatter present and `alwaysApply: true`.
+

@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, dev, staging ]
+  pull_request:
+    branches: [ main, dev, staging ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies (if Node project)
+        run: |
+          if [ -f package.json ]; then npm ci; else echo "No package.json — skipping npm install"; fi
+      - name: Run tests (if Node project)
+        run: |
+          if [ -f package.json ]; then npm test; else echo "No tests configured"; fi
+

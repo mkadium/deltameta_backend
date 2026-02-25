@@ -1,0 +1,28 @@
+# DELTAMETA - User Tasks
+
+Use this plain text file to give the assistant tasks in normal English.
+
+Guidelines:
+- Write one task per line or paragraph.
+- Be specific about desired outcomes, files to change, or constraints.
+- If the task involves code, include filenames, function names, or code snippets where helpful.
+
+Example tasks:
+- "Create a React app scaffold in this repo with Vite and TypeScript."
+- "Update `project_overview.md` to add a new 'Roadmap' section summarizing Q1 goals."
+- "Refactor `src/utils/api.ts` to use retry logic and add tests."
+
+When you save or update this file and tell the assistant to "perform tasks" or "start tasks", the assistant will read the entries and ask clarifying questions if needed.
+
+Leave your task here:
+> backend folder is my api's written in python and fastapi.
+
+1. Create a python virtual environment in the backend folder.
+2. configure and setup fastapi in the virtual environment.
+3. create a simple hello world api in the backend folder.
+4. run the api and test it.
+5. commit the changes to the backend folder.
+6. push the changes to the remote repository.
+7. create a pull request to the remote repository.
+8. merge the pull request to the remote repository.
+
