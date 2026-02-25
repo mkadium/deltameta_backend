@@ -36,4 +36,6 @@
 2026-02-25T13:55:00Z | ApplyPatch: update project_overview.md to mention hello-world API endpoint | Add explicit note about GET / returning Hello, Deltameta!
 2026-02-25T14:05:00Z | ApplyPatch: add backend/testcases/test_api.py | Add pytest TestClient tests for root endpoint and 404 behavior
 2026-02-25T14:06:00Z | ApplyPatch: add backend/requirements-dev.txt | Add dev requirements for running tests (pytest, httpx)
+2026-02-25T14:20:00Z | ApplyPatch: add tasks.md | Add generated tasks summary synced from user_tasks.txt
+2026-02-25T14:30:00Z | ApplyPatch: update tasks.md statuses to done | Mark tasks completed after implementation and PR merges
 
