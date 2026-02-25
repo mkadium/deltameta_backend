@@ -21,3 +21,7 @@
 # Ignore testcases and dev requirements (do not push)
 /backend/testcases/
 /backend/requirements-dev.txt
+
+# Ignore agent log and generated tasks file
+/agent_commands.log
+/tasks.md
