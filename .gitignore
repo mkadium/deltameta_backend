@@ -1,3 +1,9 @@
+# Ignore agent log and generated tasks file
+/agent_commands.log
+/tasks.md
+
+# Ignore .env local secret file
+/.env
 # Ignore everything by default
 /*
 
@@ -22,6 +28,4 @@
 /backend/testcases/
 /backend/requirements-dev.txt
 
-# Ignore agent log and generated tasks file
-/agent_commands.log
-/tasks.md
+
