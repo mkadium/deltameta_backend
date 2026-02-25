@@ -1,0 +1,32 @@
+# Ignore agent log and generated tasks file
+/agent_commands.log
+/tasks.md
+
+# Ignore .env local secret file
+/.env
+/.env.example
+# Ignore everything by default
+/*
+
+# But keep the backend directory and its contents
+!/backend/
+!/backend/** 
+
+# Keep .gitignore itself
+!.gitignore
+
+# Keep the .ssh key files if any (do not commit private keys) - ensure safety
+/.ssh/
+
+# Ignore Python virtualenv inside backend
+/backend/venv/
+
+# Python cache
+**/__pycache__/
+**/*.py[cod]
+
+# Ignore testcases and dev requirements (do not push)
+/backend/testcases/
+/backend/requirements-dev.txt
+
+
