@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from app.settings import settings
 from app.auth.models import Base
 import app.setting_nodes.models  # register SettingNode models in Base.metadata
+import app.resources.models  # register ResourceGroup/ResourceDefinition in Base.metadata
 
 # Alembic Config object
 config = context.config
