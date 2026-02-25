@@ -14,7 +14,16 @@ class Settings(BaseSettings):
     primary_db_password: Optional[str] = None
     primary_db_name: Optional[str] = None
     primary_db_schema: str = "deltameta"
-    
+
+    # JWT Auth settings
+    jwt_secret_key: str = "change-me-in-production-use-a-long-random-string"
+    jwt_algorithm: str = "HS256"
+
+    # Global admin seed (used in Alembic migration seed)
+    global_admin_email: str = "admin@deltameta.io"
+    global_admin_password: str = "Admin@123"
+    global_admin_name: str = "Global Admin"
+
     # OpenTelemetry settings
     otel_enabled: bool = True
     otel_service_name: str = "deltameta-backend"
@@ -26,6 +35,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_prefix = ""
+        extra = "ignore"
 
 
 settings = Settings()

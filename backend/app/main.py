@@ -24,8 +24,38 @@ except Exception:
     except Exception:
         setup_tracing = None
 
-app = FastAPI(title="Deltameta Backend", version="1.0.0")
+app = FastAPI(
+    title="Deltameta Backend",
+    version="1.0.0",
+    description="Deltameta — Metadata Platform API",
+)
 logger = logging.getLogger("deltameta")
+
+# Register routers
+try:
+    from app.auth.router import router as auth_router
+    from app.domains.router import router as domains_router
+    from app.teams.router import router as teams_router
+    from app.roles.router import router as roles_router
+    from app.policies.router import router as policies_router
+    from app.org.router import router as org_router
+    from app.subscriptions.router import router as subscriptions_router
+except Exception:
+    from .auth.router import router as auth_router
+    from .domains.router import router as domains_router
+    from .teams.router import router as teams_router
+    from .roles.router import router as roles_router
+    from .policies.router import router as policies_router
+    from .org.router import router as org_router
+    from .subscriptions.router import router as subscriptions_router
+
+app.include_router(auth_router)
+app.include_router(domains_router)
+app.include_router(teams_router)
+app.include_router(roles_router)
+app.include_router(policies_router)
+app.include_router(org_router)
+app.include_router(subscriptions_router)
 
 # Initialize OpenTelemetry tracing (optional)
 if setup_tracing:

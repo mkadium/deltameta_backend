@@ -6,7 +6,7 @@ fastapi==0.133.0
 h11==0.16.0
 httptools==0.7.1
 idna==3.11
-pydantic==2.12.5
+pydantic[email]==2.12.5
 pydantic_core==2.41.5
 python-dotenv==1.2.1
 PyYAML==6.0.3
@@ -23,6 +23,11 @@ alembic==1.11.1
 prometheus_client==0.17.1
 python-json-logger==2.0.4
 gunicorn==21.2.0
+pydantic-settings==2.0.3
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+python-multipart==0.0.9
 # OpenTelemetry
 opentelemetry-api==1.26.0
 opentelemetry-sdk==1.26.0

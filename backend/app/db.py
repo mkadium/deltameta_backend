@@ -11,9 +11,21 @@ def _create_engine(url: str) -> AsyncEngine:
     return create_async_engine(url, echo=False, future=True)
 
 
-def init_engines():
+def _build_primary_url() -> Optional[str]:
     if settings.primary_database_url:
-        _engines["primary"] = _create_engine(settings.primary_database_url)
+        return settings.primary_database_url
+    if settings.primary_db_host:
+        return (
+            f"postgresql+asyncpg://{settings.primary_db_user}:{settings.primary_db_password}"
+            f"@{settings.primary_db_host}:{settings.primary_db_port}/{settings.primary_db_name}"
+        )
+    return None
+
+
+def init_engines():
+    url = _build_primary_url()
+    if url:
+        _engines["primary"] = _create_engine(url)
         _sessions["primary"] = sessionmaker(
             _engines["primary"], class_=AsyncSession, expire_on_commit=False
         )
