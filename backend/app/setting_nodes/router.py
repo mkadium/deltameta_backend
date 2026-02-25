@@ -41,6 +41,7 @@ from app.setting_nodes.schemas import (
     UserOverrideResponse, UserOverrideUpdate,
 )
 from app.setting_nodes.service import compute_slug_path, resolve_nodes
+from app.resources.service import upsert_leaf_node_resource, deactivate_leaf_node_resource
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
 
@@ -245,6 +246,10 @@ async def create_setting_node(
     if not node.slug_path:
         node.slug_path = await compute_slug_path(db, node)
 
+    # If leaf node: auto-create/update the resource definition in the registry
+    if node.node_type == "leaf":
+        await upsert_leaf_node_resource(db, node)
+
     await db.commit()
     await db.refresh(node)
 
@@ -281,6 +286,10 @@ async def update_setting_node(
     if "slug" in update_data and "slug_path" not in update_data:
         node.slug_path = await compute_slug_path(db, node)
 
+    # If leaf node: keep resource definition in sync
+    if node.node_type == "leaf" and node.is_active:
+        await upsert_leaf_node_resource(db, node)
+
     await db.commit()
     await db.refresh(node)
 
@@ -304,6 +313,11 @@ async def delete_setting_node(
     node = await _get_node_or_404(db, node_id)
 
     node.is_active = False
+
+    # If leaf node: deactivate its resource definition so it disappears from policy dropdowns
+    if node.node_type == "leaf":
+        await deactivate_leaf_node_resource(db, node)
+
     await db.commit()
     await db.refresh(node)
 

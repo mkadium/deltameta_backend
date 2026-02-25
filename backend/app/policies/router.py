@@ -2,8 +2,9 @@
 Policies API router — ABAC policy CRUD.
 
 Policy structure:
-  - resource: what the policy applies to (e.g. "catalog.dataset", "admin.users")
-  - operations: list of allowed ops on that resource (view/create/update/delete/allow/deny)
+  - resource: key from resource_definitions (e.g. "user", "team",
+              "services.databases.postgres") — validated against registry
+  - operations: subset of the resource's valid operations — validated against registry
   - conditions: list of attribute-based conditions [{attr, op, value}]
 
 Policies are stored in the DB. Enforcement is a FUTURE phase.
@@ -27,8 +28,45 @@ from app.auth.schemas import (
     PolicyUpdate,
 )
 from app.auth.dependencies import require_active_user, require_org_admin
+from app.resources.service import validate_resource_key, get_operations_for_key
 
 router = APIRouter(prefix="/policies", tags=["Policies"])
+
+
+# ---------------------------------------------------------------------------
+# Internal validation helper
+# ---------------------------------------------------------------------------
+
+async def _validate_resource_and_operations(
+    resource: str,
+    operations: List[str],
+    session: AsyncSession,
+) -> None:
+    """
+    Validate that:
+    1. resource key exists in resource_definitions and is active
+    2. every operation is in the resource's valid operations list
+    Raises 422 if invalid.
+    """
+    resource_def = await validate_resource_key(session, resource)
+    if not resource_def:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Resource '{resource}' is not a valid resource key. "
+                "Call GET /resources to see all available resources."
+            ),
+        )
+    valid_ops = set(resource_def.operations)
+    invalid_ops = [op for op in operations if op not in valid_ops]
+    if invalid_ops:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Invalid operations {invalid_ops} for resource '{resource}'. "
+                f"Valid operations: {sorted(valid_ops)}"
+            ),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +95,9 @@ async def create_policy(
     current_user=Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
+    # Validate resource key and operations against the registry
+    await _validate_resource_and_operations(body.resource, body.operations, session)
+
     existing = await session.execute(
         select(Policy).where(Policy.org_id == current_user.org_id, Policy.name == body.name)
     )
@@ -96,6 +137,11 @@ async def update_policy(
     session: AsyncSession = Depends(get_session),
 ):
     policy = await _get_policy_or_404(policy_id, current_user.org_id, session)
+
+    # Validate resource/operations if being updated
+    new_resource = body.resource if body.resource is not None else policy.resource
+    new_operations = body.operations if body.operations is not None else policy.operations
+    await _validate_resource_and_operations(new_resource, new_operations, session)
 
     if body.name is not None and body.name != policy.name:
         existing = await session.execute(

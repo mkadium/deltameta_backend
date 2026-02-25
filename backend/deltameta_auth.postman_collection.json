@@ -18,7 +18,8 @@
     { "key": "subscription_id", "value": "", "type": "string" },
     { "key": "setting_node_id", "value": "", "type": "string" },
     { "key": "setting_child_id", "value": "", "type": "string" },
-    { "key": "setting_leaf_id", "value": "", "type": "string" }
+    { "key": "setting_leaf_id", "value": "", "type": "string" },
+    { "key": "resource_key", "value": "", "type": "string" }
   ],
   "auth": {
     "type": "bearer",
@@ -879,6 +880,62 @@
           "name": "17. Soft Delete Node",
           "request": { "method": "DELETE", "header": [], "url": { "raw": "{{base_url}}/settings/nodes/{{setting_leaf_id}}", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_leaf_id}}"] } },
           "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('is_active false', () => pm.expect(pm.response.json().is_active).to.eql(false));"]}}]
+        }
+      ]
+    },
+    {
+      "name": "Resource Registry",
+      "description": "Resource Registry — the catalog of all platform resources and their valid operations.\n\nWorkflow for creating policies:\n  1. POST /resources/sync          (admin, run once after deploy)\n  2. GET  /resources               → pick a group + resource from dropdown\n  3. GET  /resources/{key}/operations → auto-populate operations checkboxes\n  4. POST /policies                → create policy with validated resource + ops",
+      "item": [
+        {
+          "name": "1. Sync Registry (admin, run after deploy)",
+          "request": { "method": "POST", "header": [], "url": { "raw": "{{base_url}}/resources/sync", "host": ["{{base_url}}"], "path": ["resources","sync"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","const d = pm.response.json();","pm.test('groups_created >= 0', () => pm.expect(d.groups_created).to.be.a('number'));","pm.test('total_resources > 0', () => pm.expect(d.total_resources).to.be.greaterThan(0));","console.log('Sync result:', JSON.stringify(d));"]}}]
+        },
+        {
+          "name": "2. List Resource Groups (for policy dropdown)",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/resources", "host": ["{{base_url}}"], "path": ["resources"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","const groups = pm.response.json();","pm.test('Returns groups array', () => pm.expect(groups).to.be.an('array'));","pm.test('Groups have resources', () => groups.forEach(g => pm.expect(g.resources).to.be.an('array')));","if(groups.length > 0 && groups[0].resources.length > 0) pm.collectionVariables.set('resource_key', groups[0].resources[0].key);","console.log('Available groups:', groups.map(g => g.slug).join(', '));"]}}]
+        },
+        {
+          "name": "3. Flat Resource List (searchable dropdown)",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/resources/flat", "host": ["{{base_url}}"], "path": ["resources","flat"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));","console.log('Total resources:', pm.response.json().length);"]}}]
+        },
+        {
+          "name": "4. Get Operations for 'user' resource",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/resources/user/operations", "host": ["{{base_url}}"], "path": ["resources","user","operations"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","const d = pm.response.json();","pm.test('Key is user', () => pm.expect(d.key).to.eql('user'));","pm.test('Has read op', () => pm.expect(d.operations).to.include('read'));","pm.test('Group is identity-access', () => pm.expect(d.group_slug).to.eql('identity-access'));"]}}]
+        },
+        {
+          "name": "5. Get Operations for 'team' resource",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/resources/team/operations", "host": ["{{base_url}}"], "path": ["resources","team","operations"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Has manage_members op', () => pm.expect(pm.response.json().operations).to.include('manage_members'));"]}}]
+        },
+        {
+          "name": "6. Get Operations for leaf node (slug_path key)",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/resources/{{setting_leaf_id}}/operations", "host": ["{{base_url}}"], "path": ["resources","{{setting_leaf_id}}","operations"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200 or 404', () => pm.expect([200,404]).to.include(pm.response.code));"]}}]
+        },
+        {
+          "name": "7. Get Operations for invalid key → 404",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/resources/totally-fake-resource/operations", "host": ["{{base_url}}"], "path": ["resources","totally-fake-resource","operations"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 404', () => pm.response.to.have.status(404));"]}}]
+        },
+        {
+          "name": "8. Create Policy with Valid Resource (user + read)",
+          "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"name\": \"User Read Policy\",\n  \"rule_name\": \"user_read\",\n  \"resource\": \"user\",\n  \"operations\": [\"read\"],\n  \"conditions\": [{\"attr\": \"is_admin\", \"op\": \"=\", \"value\": \"true\"}]\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/policies", "host": ["{{base_url}}"], "path": ["policies"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201', () => pm.response.to.have.status(201));","pm.test('resource is user', () => pm.expect(pm.response.json().resource).to.eql('user'));","pm.collectionVariables.set('policy_id', pm.response.json().id);"]}}]
+        },
+        {
+          "name": "9. Create Policy with INVALID resource → 422",
+          "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"name\": \"Bad Resource Policy\",\n  \"rule_name\": \"bad_resource\",\n  \"resource\": \"made-up-resource-xyz\",\n  \"operations\": [\"read\"],\n  \"conditions\": []\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/policies", "host": ["{{base_url}}"], "path": ["policies"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 422', () => pm.response.to.have.status(422));","pm.test('Error mentions resource key', () => pm.expect(pm.response.json().detail.toLowerCase()).to.include('resource'));"]}}]
+        },
+        {
+          "name": "10. Create Policy with INVALID operations → 422",
+          "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"name\": \"Bad Ops Policy\",\n  \"rule_name\": \"bad_ops\",\n  \"resource\": \"user\",\n  \"operations\": [\"read\", \"fly\", \"teleport\"],\n  \"conditions\": []\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/policies", "host": ["{{base_url}}"], "path": ["policies"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 422', () => pm.response.to.have.status(422));","pm.test('Error mentions operations', () => pm.expect(pm.response.json().detail.toLowerCase()).to.include('invalid operations'));"]}}]
         }
       ]
     }
