@@ -11,3 +11,13 @@
 # Keep the .ssh key files if any (do not commit private keys) - ensure safety
 /.ssh/
 
+# Ignore Python virtualenv inside backend
+/backend/venv/
+
+# Python cache
+**/__pycache__/
+**/*.py[cod]
+
+# Ignore testcases and dev requirements (do not push)
+/backend/testcases/
+/backend/requirements-dev.txt
