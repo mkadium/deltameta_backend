@@ -23,3 +23,12 @@ alembic==1.11.1
 prometheus_client==0.17.1
 python-json-logger==2.0.4
 gunicorn==21.2.0
+# OpenTelemetry
+opentelemetry-api==1.26.0
+opentelemetry-sdk==1.26.0
+opentelemetry-instrumentation-fastapi==0.47b0
+opentelemetry-instrumentation-sqlalchemy==0.47b0
+opentelemetry-instrumentation-asyncpg==0.47b0
+opentelemetry-instrumentation-logging==0.47b0
+opentelemetry-exporter-otlp==1.26.0
+opentelemetry-exporter-otlp-proto-grpc==1.26.0

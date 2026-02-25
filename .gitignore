@@ -6,6 +6,9 @@
 /uvicorn.log
 /backend/uvicorn.log
 
+# Telemetry logs (daily log files)
+/backend/telemetry_logs/*.log
+
 # Local secrets / env
 /.env
 /backend/.env
