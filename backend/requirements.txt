@@ -20,3 +20,6 @@ websockets==16.0
 sqlalchemy==2.0.19
 asyncpg==0.28.0
 alembic==1.11.1
+prometheus_client==0.17.1
+python-json-logger==2.0.4
+gunicorn==21.2.0
