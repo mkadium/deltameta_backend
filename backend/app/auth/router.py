@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import get_session
-from app.auth.models import AuthConfig, Organization, User
+from app.auth.models import AuthConfig, Organization, User, user_organizations
 from app.auth.schemas import (
     AuthConfigResponse,
     AuthConfigUpdate,
@@ -28,6 +28,7 @@ from app.auth.schemas import (
     UserResponse,
     UserUpdateRequest,
 )
+from sqlalchemy import insert
 from app.auth.service import (
     check_lockout,
     create_access_token,
@@ -98,9 +99,11 @@ async def register(
     await db.flush()  # Get org.id without committing
 
     # Create user
+    user_id = uuid.uuid4()
     user = User(
-        id=uuid.uuid4(),
+        id=user_id,
         org_id=org.id,
+        default_org_id=org.id,   # Default org = the org just created
         name=body.name,
         display_name=body.display_name or body.name,
         email=body.email,
@@ -128,6 +131,18 @@ async def register(
         sso_provider="default",
     )
     db.add(auth_cfg)
+
+    # Register user as org admin in user_organizations
+    await db.execute(
+        insert(user_organizations).values(
+            id=uuid.uuid4(),
+            user_id=user.id,
+            org_id=org.id,
+            is_org_admin=True,
+            is_active=True,
+        )
+    )
+
     await db.commit()
     await db.refresh(user)
 
@@ -162,7 +177,9 @@ async def login(
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is inactive")
 
-    auth_config = await get_auth_config_for_org(str(user.org_id), db)
+    # Use default_org_id if set, otherwise fall back to org_id
+    active_org_id = user.default_org_id or user.org_id
+    auth_config = await get_auth_config_for_org(str(active_org_id), db)
 
     # Check lockout before verifying password
     check_lockout(user, auth_config)
@@ -174,11 +191,22 @@ async def login(
     # Successful login — reset counters
     await reset_failed_attempts(user, db)
 
+    # Check if user is org admin for the active org
+    membership = await db.execute(
+        select(user_organizations).where(
+            user_organizations.c.user_id == user.id,
+            user_organizations.c.org_id == active_org_id,
+            user_organizations.c.is_active == True,
+        )
+    )
+    mem_row = membership.mappings().first()
+    is_org_admin = bool(mem_row and mem_row["is_org_admin"]) if mem_row else user.is_admin
+
     token = create_access_token(
         user_id=str(user.id),
-        org_id=str(user.org_id),
+        org_id=str(active_org_id),
         expiry_minutes=auth_config.jwt_expiry_minutes,
-        is_admin=user.is_admin,
+        is_admin=is_org_admin,
         is_global_admin=user.is_global_admin,
     )
     return TokenResponse(
@@ -218,10 +246,11 @@ async def refresh_token(
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ) -> TokenResponse:
-    auth_config = await get_auth_config_for_org(str(current_user.org_id), db)
+    active_org_id = current_user.default_org_id or current_user.org_id
+    auth_config = await get_auth_config_for_org(str(active_org_id), db)
     token = create_access_token(
         user_id=str(current_user.id),
-        org_id=str(current_user.org_id),
+        org_id=str(active_org_id),
         expiry_minutes=auth_config.jwt_expiry_minutes,
         is_admin=current_user.is_admin,
         is_global_admin=current_user.is_global_admin,
@@ -256,6 +285,7 @@ async def get_me(
     "/me",
     response_model=UserResponse,
     summary="Update current user profile",
+    description="Update name, display_name, description, image. Use default_org_id to switch active organization context (must be an org you belong to).",
 )
 async def update_me(
     body: UserUpdateRequest,
@@ -271,6 +301,22 @@ async def update_me(
     if body.image is not None:
         current_user.image = body.image
 
+    if body.default_org_id is not None:
+        # Validate user belongs to the requested org
+        membership = await db.execute(
+            select(user_organizations).where(
+                user_organizations.c.user_id == current_user.id,
+                user_organizations.c.org_id == body.default_org_id,
+                user_organizations.c.is_active == True,
+            )
+        )
+        if not membership.mappings().first():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not a member of the specified organization",
+            )
+        current_user.default_org_id = body.default_org_id
+
     db.add(current_user)
     await db.commit()
     await db.refresh(current_user)
@@ -283,6 +329,31 @@ async def update_me(
     result = await db.execute(stmt)
     user = result.scalars().first()
     return UserResponse.model_validate(user)
+
+
+# ---------------------------------------------------------------------------
+# GET /auth/me/orgs
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/me/orgs",
+    response_model=list[OrgResponse],
+    summary="List all organizations the current user belongs to",
+)
+async def get_my_orgs(
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+) -> list[OrgResponse]:
+    result = await db.execute(
+        select(Organization)
+        .join(user_organizations, user_organizations.c.org_id == Organization.id)
+        .where(
+            user_organizations.c.user_id == current_user.id,
+            user_organizations.c.is_active == True,
+        )
+        .order_by(Organization.name)
+    )
+    return result.scalars().all()
 
 
 # ---------------------------------------------------------------------------

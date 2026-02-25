@@ -95,6 +95,7 @@ class RoleSummary(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     org_id: UUID
+    default_org_id: Optional[UUID] = None
     domain_id: Optional[UUID] = None
     name: str
     display_name: Optional[str] = None
@@ -120,20 +121,49 @@ class UserUpdateRequest(BaseModel):
     display_name: Optional[str] = Field(None, max_length=255)
     description: Optional[str] = None
     image: Optional[str] = Field(None, max_length=512)
+    default_org_id: Optional[UUID] = Field(None, description="Switch active organization context (must be an org the user belongs to)")
 
 
 # ---------------------------------------------------------------------------
 # Organization schemas
 # ---------------------------------------------------------------------------
 
+class OrgCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=255)
+    description: Optional[str] = None
+    contact_email: Optional[str] = Field(None, max_length=255)
+
+
+class OrgUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=255)
+    description: Optional[str] = None
+    contact_email: Optional[str] = Field(None, max_length=255)
+    owner_id: Optional[UUID] = None
+    is_active: Optional[bool] = None
+
+
 class OrgResponse(BaseModel):
     id: UUID
     name: str
     slug: str
     description: Optional[str] = None
+    contact_email: Optional[str] = None
+    owner_id: Optional[UUID] = None
     is_active: bool
     is_default: bool
     created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class OrgMemberResponse(BaseModel):
+    """A user's membership record in a specific org."""
+    user_id: UUID
+    org_id: UUID
+    is_org_admin: bool
+    is_active: bool
+    joined_at: datetime
 
     model_config = {"from_attributes": True}
 

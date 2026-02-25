@@ -40,8 +40,20 @@ TeamTypeEnum = Enum(
 
 
 # ---------------------------------------------------------------------------
-# Association tables (pure many-to-many, no extra columns)
+# Association tables
 # ---------------------------------------------------------------------------
+
+user_organizations = sa.Table(
+    "user_organizations",
+    Base.metadata,
+    Column("id", UUID(as_uuid=True), default=uuid.uuid4, primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), nullable=False),
+    Column("org_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False),
+    Column("is_org_admin", Boolean, nullable=False, default=False),
+    Column("is_active", Boolean, nullable=False, default=True),
+    Column("joined_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    schema=SCHEMA,
+)
 
 role_policies = sa.Table(
     "role_policies",
@@ -102,9 +114,13 @@ class Organization(Base):
     teams = relationship("Team", back_populates="organization", cascade="all, delete-orphan")
     roles = relationship("Role", back_populates="organization", cascade="all, delete-orphan")
     policies = relationship("Policy", back_populates="organization", cascade="all, delete-orphan")
-    users = relationship("User", back_populates="organization", cascade="all, delete-orphan")
+    users = relationship("User", foreign_keys="User.org_id", back_populates="organization", cascade="all, delete-orphan")
     profiler_configs = relationship("OrgProfilerConfig", back_populates="organization", cascade="all, delete-orphan")
     subscriptions = relationship("Subscription", back_populates="organization")
+    members = relationship("User", secondary=user_organizations, back_populates="member_orgs",
+                           primaryjoin=lambda: Organization.id == user_organizations.c.org_id,
+                           secondaryjoin=lambda: User.id == user_organizations.c.user_id,
+                           viewonly=True)
 
 
 # ---------------------------------------------------------------------------
@@ -236,6 +252,7 @@ class User(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    default_org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="SET NULL"), nullable=True)
     domain_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.domains.id", ondelete="SET NULL"), nullable=True)
     name = Column(String(255), nullable=False)
     display_name = Column(String(255), nullable=True)
@@ -254,13 +271,18 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
-    organization = relationship("Organization", back_populates="users")
+    organization = relationship("Organization", foreign_keys=[org_id], back_populates="users")
+    default_org = relationship("Organization", foreign_keys=[default_org_id])
     domain = relationship("Domain", foreign_keys=[domain_id], back_populates="users")
     owned_domains = relationship("Domain", foreign_keys="Domain.owner_id", back_populates="owner")
     teams = relationship("Team", secondary=user_teams, back_populates="members")
     roles = relationship("Role", secondary=user_roles, back_populates="users")
     policies = relationship("Policy", secondary=user_policies, back_populates="users")
     subscriptions = relationship("Subscription", back_populates="user")
+    member_orgs = relationship("Organization", secondary=user_organizations, back_populates="members",
+                               primaryjoin=lambda: User.id == user_organizations.c.user_id,
+                               secondaryjoin=lambda: Organization.id == user_organizations.c.org_id,
+                               viewonly=True)
 
 
 # ---------------------------------------------------------------------------
