@@ -1,0 +1,13 @@
+# Ignore everything by default
+/*
+
+# But keep the backend directory and its contents
+!/backend/
+!/backend/** 
+
+# Keep .gitignore itself
+!.gitignore
+
+# Keep the .ssh key files if any (do not commit private keys) - ensure safety
+/.ssh/
+
