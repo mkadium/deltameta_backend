@@ -8,6 +8,8 @@
     { "key": "base_url", "value": "http://localhost:8000", "type": "string" },
     { "key": "token", "value": "", "type": "string" },
     { "key": "user_id", "value": "", "type": "string" },
+    { "key": "org_id", "value": "", "type": "string" },
+    { "key": "second_org_id", "value": "", "type": "string" },
     { "key": "domain_id", "value": "", "type": "string" },
     { "key": "team_id", "value": "", "type": "string" },
     { "key": "child_team_id", "value": "", "type": "string" },
@@ -52,11 +54,12 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-              "pm.test('Response has user id', () => {",
-              "    const body = pm.response.json();",
-              "    pm.expect(body).to.have.property('id');",
-              "    pm.expect(body).to.have.property('email');",
-              "});"
+              "const body = pm.response.json();",
+              "pm.test('Response has user id', () => pm.expect(body).to.have.property('id'));",
+              "pm.test('Response has email', () => pm.expect(body).to.have.property('email'));",
+              "pm.test('Has default_org_id', () => pm.expect(body).to.have.property('default_org_id'));",
+              "if(body.id) pm.collectionVariables.set('user_id', body.id);",
+              "if(body.default_org_id) pm.collectionVariables.set('org_id', body.default_org_id);"
             ]
           }
         }
@@ -121,9 +124,11 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-              "pm.test('Response has email', () => {",
-              "    pm.expect(pm.response.json()).to.have.property('email');",
-              "});"
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('user_id', body.id);",
+              "pm.collectionVariables.set('org_id', body.default_org_id || body.org_id);",
+              "pm.test('Response has email', () => pm.expect(body).to.have.property('email'));",
+              "pm.test('Has default_org_id', () => pm.expect(body).to.have.property('default_org_id'));"
             ]
           }
         }
@@ -147,7 +152,7 @@
           "raw": "{\n  \"name\": \"John Updated\",\n  \"display_name\": \"Johnny\",\n  \"description\": \"Senior Data Engineer\",\n  \"image\": \"https://example.com/avatar.png\"\n}",
           "options": { "raw": { "language": "json" } }
         },
-        "description": "Updates the current user's profile fields. All fields are optional — only send what you want to change.\n\n**Requires:** Bearer token.\n\n**Success:** `200 OK` → Updated `UserResponse`\n**Errors:** `401/403`."
+        "description": "Updates the current user's profile fields. All fields are optional — only send what you want to change.\n\nUse `default_org_id` field to switch your active organization context (must be an org you belong to).\n\n**Requires:** Bearer token.\n\n**Success:** `200 OK` → Updated `UserResponse`\n**Errors:** `401/403`."
       },
       "event": [
         {
@@ -163,6 +168,29 @@
           }
         }
       ]
+    },
+    {
+      "name": "4b. Switch Default Org",
+      "request": {
+        "auth": { "type": "inherit" },
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"] },
+        "body": { "mode": "raw", "raw": "{\n  \"default_org_id\": \"{{second_org_id}}\"\n}", "options": { "raw": { "language": "json" } } },
+        "description": "Switch active organization. Run after creating a second org and setting {{second_org_id}}."
+      },
+      "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('default_org_id updated', () => pm.expect(pm.response.json().default_org_id).to.eql(pm.collectionVariables.get('second_org_id')));"]}}]
+    },
+    {
+      "name": "4c. List My Orgs",
+      "request": {
+        "auth": { "type": "inherit" },
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/auth/me/orgs", "host": ["{{base_url}}"], "path": ["auth", "me", "orgs"] },
+        "description": "Returns all organizations the current user belongs to."
+      },
+      "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));","pm.test('At least 1 org', () => pm.expect(pm.response.json().length).to.be.greaterThan(0));"]}}]
     },
     {
       "name": "5. Refresh Token",
@@ -602,6 +630,86 @@
             "url": { "raw": "{{base_url}}/roles/{{role_id}}", "host": ["{{base_url}}"], "path": ["roles","{{role_id}}"] }
           },
           "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        }
+      ]
+    },
+    {
+      "name": "Organizations (CRUD & Membership)",
+      "item": [
+        {
+          "name": "List My Organizations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/orgs", "host": ["{{base_url}}"], "path": ["orgs"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","const body = pm.response.json();","pm.test('Returns array', () => pm.expect(body).to.be.an('array'));","pm.test('At least one org', () => pm.expect(body.length).to.be.greaterThan(0));","if(body.length > 0) pm.collectionVariables.set('org_id', body[0].id);"]}}]
+        },
+        {
+          "name": "Create New Organization",
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"name\": \"Acme Corp\",\n  \"slug\": \"acme-corp\",\n  \"description\": \"Second organization for testing multi-org\",\n  \"contact_email\": \"admin@acme.com\"\n}","options":{"raw":{"language":"json"}}},
+            "url": { "raw": "{{base_url}}/orgs", "host": ["{{base_url}}"], "path": ["orgs"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201', () => pm.response.to.have.status(201));","const body = pm.response.json();","pm.collectionVariables.set('second_org_id', body.id);","pm.test('Has id', () => pm.expect(body).to.have.property('id'));","pm.test('Name matches', () => pm.expect(body.name).to.eql('Acme Corp'));"]}}]
+        },
+        {
+          "name": "Get Organization by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/orgs/{{org_id}}", "host": ["{{base_url}}"], "path": ["orgs","{{org_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Has slug', () => pm.expect(pm.response.json()).to.have.property('slug'));"]}}]
+        },
+        {
+          "name": "Update Organization",
+          "request": {
+            "method": "PUT",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"description\": \"Updated org description\",\n  \"contact_email\": \"new-admin@company.com\"\n}","options":{"raw":{"language":"json"}}},
+            "url": { "raw": "{{base_url}}/orgs/{{org_id}}", "host": ["{{base_url}}"], "path": ["orgs","{{org_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Contact email updated', () => pm.expect(pm.response.json().contact_email).to.eql('new-admin@company.com'));"]}}]
+        },
+        {
+          "name": "Delete (Soft) Organization",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/orgs/{{second_org_id}}", "host": ["{{base_url}}"], "path": ["orgs","{{second_org_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Deactivated', () => pm.expect(pm.response.json().is_active).to.eql(false));"]}}]
+        },
+        {
+          "name": "List Org Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/orgs/{{org_id}}/members", "host": ["{{base_url}}"], "path": ["orgs","{{org_id}}","members"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));","pm.test('At least 1 member', () => pm.expect(pm.response.json().length).to.be.greaterThan(0));"]}}]
+        },
+        {
+          "name": "Add User to Org (requires user_id)",
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"is_org_admin\": false\n}","options":{"raw":{"language":"json"}}},
+            "url": { "raw": "{{base_url}}/orgs/{{org_id}}/members/{{user_id}}", "host": ["{{base_url}}"], "path": ["orgs","{{org_id}}","members","{{user_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200 or 400', () => pm.expect([200,400]).to.include(pm.response.code));"]}}]
+        },
+        {
+          "name": "Remove User from Org (requires user_id)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/orgs/{{org_id}}/members/{{user_id}}", "host": ["{{base_url}}"], "path": ["orgs","{{org_id}}","members","{{user_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200 or 400', () => pm.expect([200,400]).to.include(pm.response.code));"]}}]
         }
       ]
     },
