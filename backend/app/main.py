@@ -40,6 +40,7 @@ try:
     from app.policies.router import router as policies_router
     from app.org.router import router as org_router
     from app.subscriptions.router import router as subscriptions_router
+    from app.setting_nodes.router import router as settings_router
 except Exception:
     from .auth.router import router as auth_router
     from .domains.router import router as domains_router
@@ -48,6 +49,7 @@ except Exception:
     from .policies.router import router as policies_router
     from .org.router import router as org_router
     from .subscriptions.router import router as subscriptions_router
+    from .setting_nodes.router import router as settings_router
 
 app.include_router(auth_router)
 app.include_router(domains_router)
@@ -56,6 +58,7 @@ app.include_router(roles_router)
 app.include_router(policies_router)
 app.include_router(org_router)
 app.include_router(subscriptions_router)
+app.include_router(settings_router)
 
 # Initialize OpenTelemetry tracing (optional)
 if setup_tracing:

@@ -15,7 +15,10 @@
     { "key": "child_team_id", "value": "", "type": "string" },
     { "key": "role_id", "value": "", "type": "string" },
     { "key": "policy_id", "value": "", "type": "string" },
-    { "key": "subscription_id", "value": "", "type": "string" }
+    { "key": "subscription_id", "value": "", "type": "string" },
+    { "key": "setting_node_id", "value": "", "type": "string" },
+    { "key": "setting_child_id", "value": "", "type": "string" },
+    { "key": "setting_leaf_id", "value": "", "type": "string" }
   ],
   "auth": {
     "type": "bearer",
@@ -785,6 +788,97 @@
             "url": { "raw": "{{base_url}}/subscriptions/{{subscription_id}}", "host": ["{{base_url}}"], "path": ["subscriptions","{{subscription_id}}"] }
           },
           "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        }
+      ]
+    },
+    {
+      "name": "Settings (Dynamic Hierarchy)",
+      "description": "N-level dynamic settings tree. Each call is one level deep.\n\nFlow:\n  1. GET /settings              → root cards (Services, Applications, ...)\n  2. GET /settings?parent=services  → sub-cards (APIs, Databases, ...)\n  3. GET /settings?parent=databases → leaf nodes (PostgreSQL, MySQL, ...)\n  4. Leaf node nav_url → navigate to config page\n\nAdmins can create/update/delete nodes and set org/user overrides.\nABAC policies can be attached to nodes to restrict visibility.",
+      "item": [
+        {
+          "name": "1. List Root Settings Cards",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/settings", "host": ["{{base_url}}"], "path": ["settings"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));","const nodes = pm.response.json();","if(nodes.length > 0) pm.collectionVariables.set('setting_node_id', nodes[0].id);"]}}]
+        },
+        {
+          "name": "2. List Children (parent=services)",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/settings?parent=services", "host": ["{{base_url}}"], "path": ["settings"], "query": [{"key": "parent", "value": "services"}] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","const nodes = pm.response.json();","pm.test('Returns array', () => pm.expect(nodes).to.be.an('array'));","if(nodes.length > 0) pm.collectionVariables.set('setting_child_id', nodes[0].id);"]}}]
+        },
+        {
+          "name": "3. List Leaf Nodes (parent=databases)",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/settings?parent=databases", "host": ["{{base_url}}"], "path": ["settings"], "query": [{"key": "parent", "value": "databases"}] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","const nodes = pm.response.json();","pm.test('Returns array', () => pm.expect(nodes).to.be.an('array'));","const leaf = nodes.find(n => n.node_type === 'leaf');","if(leaf) { pm.collectionVariables.set('setting_leaf_id', leaf.id); pm.test('Leaf has nav_url', () => pm.expect(leaf.nav_url).to.be.a('string')); }"]}}]
+        },
+        {
+          "name": "4. Full Settings Tree",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/settings/tree", "host": ["{{base_url}}"], "path": ["settings","tree"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"]}}]
+        },
+        {
+          "name": "5. Tree from Parent (parent=services)",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/settings/tree?parent=services", "host": ["{{base_url}}"], "path": ["settings","tree"], "query": [{"key": "parent", "value": "services"}] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "6. Get Single Node",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/settings/node/{{setting_node_id}}", "host": ["{{base_url}}"], "path": ["settings","node","{{setting_node_id}}"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","const n = pm.response.json();","pm.test('Has slug', () => pm.expect(n).to.have.property('slug'));","pm.test('Has is_enabled', () => pm.expect(n).to.have.property('is_enabled'));","pm.test('Has slug_path', () => pm.expect(n).to.have.property('slug_path'));"]}}]
+        },
+        {
+          "name": "7. Create Root Node (Admin)",
+          "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"slug\": \"services\",\n  \"display_label\": \"Services\",\n  \"description\": \"Connect to external services and APIs\",\n  \"icon\": \"server\",\n  \"node_type\": \"category\",\n  \"sort_order\": 1\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/settings/nodes", "host": ["{{base_url}}"], "path": ["settings","nodes"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201', () => pm.response.to.have.status(201));","const n = pm.response.json();","pm.collectionVariables.set('setting_node_id', n.id);","pm.test('slug_path auto-computed', () => pm.expect(n.slug_path).to.eql('services'));","pm.test('has_children is false', () => pm.expect(n.has_children).to.eql(false));"]}}]
+        },
+        {
+          "name": "8. Create Child Node (databases under services)",
+          "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"parent_id\": \"{{setting_node_id}}\",\n  \"slug\": \"databases\",\n  \"display_label\": \"Databases\",\n  \"description\": \"Relational and non-relational databases\",\n  \"icon\": \"database\",\n  \"node_type\": \"category\",\n  \"sort_order\": 2\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/settings/nodes", "host": ["{{base_url}}"], "path": ["settings","nodes"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201', () => pm.response.to.have.status(201));","const n = pm.response.json();","pm.collectionVariables.set('setting_child_id', n.id);","pm.test('slug_path is services.databases', () => pm.expect(n.slug_path).to.eql('services.databases'));"]}}]
+        },
+        {
+          "name": "9. Create Leaf Node (postgres under databases)",
+          "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"parent_id\": \"{{setting_child_id}}\",\n  \"slug\": \"postgres\",\n  \"display_label\": \"PostgreSQL\",\n  \"description\": \"Connect to a PostgreSQL database\",\n  \"icon\": \"postgresql\",\n  \"node_type\": \"leaf\",\n  \"nav_url\": \"/integrations/postgres/config\",\n  \"sort_order\": 1\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/settings/nodes", "host": ["{{base_url}}"], "path": ["settings","nodes"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201', () => pm.response.to.have.status(201));","const n = pm.response.json();","pm.collectionVariables.set('setting_leaf_id', n.id);","pm.test('nav_url set', () => pm.expect(n.nav_url).to.eql('/integrations/postgres/config'));","pm.test('slug_path correct', () => pm.expect(n.slug_path).to.eql('services.databases.postgres'));"]}}]
+        },
+        {
+          "name": "10. Update Node",
+          "request": { "method": "PUT", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"description\": \"Updated description\",\n  \"sort_order\": 0\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/settings/nodes/{{setting_node_id}}", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_node_id}}"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Description updated', () => pm.expect(pm.response.json().description).to.eql('Updated description'));"]}}]
+        },
+        {
+          "name": "11. Set Org Override (disable)",
+          "request": { "method": "PUT", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"is_enabled\": false,\n  \"config\": {}\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/settings/nodes/{{setting_child_id}}/org-override", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_child_id}}","org-override"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('is_enabled false', () => pm.expect(pm.response.json().is_enabled).to.eql(false));"]}}]
+        },
+        {
+          "name": "12. Reset Org Override",
+          "request": { "method": "DELETE", "header": [], "url": { "raw": "{{base_url}}/settings/nodes/{{setting_child_id}}/org-override", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_child_id}}","org-override"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 204', () => pm.response.to.have.status(204));"]}}]
+        },
+        {
+          "name": "13. Set User Override (hide for self)",
+          "request": { "method": "PUT", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"is_enabled\": false\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/settings/nodes/{{setting_leaf_id}}/user-override", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_leaf_id}}","user-override"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('is_enabled false', () => pm.expect(pm.response.json().is_enabled).to.eql(false));"]}}]
+        },
+        {
+          "name": "14. Reset User Override",
+          "request": { "method": "DELETE", "header": [], "url": { "raw": "{{base_url}}/settings/nodes/{{setting_leaf_id}}/user-override", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_leaf_id}}","user-override"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 204', () => pm.response.to.have.status(204));"]}}]
+        },
+        {
+          "name": "15. Attach Policy to Node",
+          "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"policy_id\": \"{{policy_id}}\"\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/settings/nodes/{{setting_node_id}}/policies", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_node_id}}","policies"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201 or 409', () => pm.expect([201,409]).to.include(pm.response.code));"]}}]
+        },
+        {
+          "name": "16. List Node Policies",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/settings/nodes/{{setting_node_id}}/policies", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_node_id}}","policies"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"]}}]
+        },
+        {
+          "name": "17. Soft Delete Node",
+          "request": { "method": "DELETE", "header": [], "url": { "raw": "{{base_url}}/settings/nodes/{{setting_leaf_id}}", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_leaf_id}}"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('is_active false', () => pm.expect(pm.response.json().is_active).to.eql(false));"]}}]
         }
       ]
     }

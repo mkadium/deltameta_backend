@@ -923,3 +923,194 @@ Subscribe to any resource type. Scoped to org as tenant namespace.
 ```json
 { "message": "Subscription deleted successfully" }
 ```
+
+---
+
+## Settings (Dynamic Hierarchy)
+
+**Module:** `app/setting_nodes`  
+**Prefix:** `/settings`  
+**Auth:** All endpoints require Bearer token.
+
+### Overview
+
+The Settings API exposes an **N-level dynamic hierarchy** of setting cards.
+The same response shape is returned at every level — the frontend simply follows `slug` values down the tree.
+
+```
+Level 1 (root)    GET /settings                        → Services | Applications | ML Models | ...
+Level 2           GET /settings?parent=services        → APIs | Databases | Message Queues | ...
+Level 3 (leaf)    GET /settings?parent=databases       → PostgreSQL | MySQL | MongoDB | ...
+Leaf action       node.nav_url                         → /integrations/postgres/config
+```
+
+### Visibility Resolution (per node, per request)
+
+1. `is_active = false` → **always hidden** (global off)
+2. `UserSettingOverride` exists → use user's `is_enabled`
+3. `OrgSettingOverride` exists → use org's `is_enabled`
+4. Otherwise → inherit global `is_active` (True at this point)
+5. ABAC `SettingPolicy` attached → user must have `read` op in one matching policy
+
+### Database Tables
+
+| Table | Purpose |
+|-------|---------|
+| `setting_nodes` | N-level self-referencing tree |
+| `org_setting_overrides` | Per-org enable/disable + config |
+| `user_setting_overrides` | Per-user enable/disable |
+| `setting_policies` | ABAC policy ↔ node attachment |
+
+---
+
+### GET /settings
+
+List one level of the hierarchy.
+
+**Query Params:**
+- `parent` (optional) — slug of the parent node. Omit for root.
+
+**Response `200 OK`:**
+```json
+[
+  {
+    "id": "uuid",
+    "parent_id": null,
+    "slug": "services",
+    "display_label": "Services",
+    "description": "Connect to external services",
+    "icon": "server",
+    "node_type": "category",
+    "nav_url": null,
+    "slug_path": "services",
+    "sort_order": 1,
+    "is_active": true,
+    "has_children": true,
+    "is_enabled": true,
+    "is_enabled_globally": true,
+    "org_override": null,
+    "user_override": null,
+    "metadata": {},
+    "created_at": "...",
+    "updated_at": "..."
+  }
+]
+```
+
+---
+
+### GET /settings/tree
+
+Full recursive tree. Same `?parent=<slug>` filter supported.
+
+**Response:** Same shape as above but each node has an additional `children: [...]` array.
+
+---
+
+### GET /settings/node/{node_id}
+
+Single node detail with resolved visibility.
+
+---
+
+### POST /settings/nodes
+
+Create a setting node. Requires org admin.
+
+**Body:**
+```json
+{
+  "parent_id": "uuid | null",
+  "slug": "databases",
+  "display_label": "Databases",
+  "description": "...",
+  "icon": "database",
+  "node_type": "category | leaf",
+  "nav_url": "/integrations/postgres/config",
+  "sort_order": 0,
+  "metadata": {}
+}
+```
+
+> **Note:** `node_type=leaf` requires `nav_url`. `slug_path` is auto-computed if omitted.
+
+**Response `201 Created`:** `SettingNodeResponse`
+
+---
+
+### PUT /settings/nodes/{node_id}
+
+Update a node. Requires org admin. All fields optional.
+
+---
+
+### DELETE /settings/nodes/{node_id}
+
+Soft-delete a node (sets `is_active=false`). Children remain but become unreachable.
+
+---
+
+### PUT /settings/nodes/{node_id}/org-override
+
+Org admin sets visibility for their org.
+
+**Body:**
+```json
+{ "is_enabled": false, "config": {} }
+```
+
+**Response `200 OK`:** `OrgOverrideResponse`
+
+---
+
+### DELETE /settings/nodes/{node_id}/org-override
+
+Remove org override — node reverts to global default.
+
+**Response `204 No Content`**
+
+---
+
+### PUT /settings/nodes/{node_id}/user-override
+
+User controls their own visibility of a node.
+
+**Body:** `{ "is_enabled": false }`
+
+**Response `200 OK`:** `UserOverrideResponse`
+
+---
+
+### DELETE /settings/nodes/{node_id}/user-override
+
+Remove user override.
+
+**Response `204 No Content`**
+
+---
+
+### GET /settings/nodes/{node_id}/policies
+
+List ABAC policies attached to this node.
+
+**Response `200 OK`:** `[SettingPolicyResponse]`
+
+---
+
+### POST /settings/nodes/{node_id}/policies
+
+Attach an ABAC policy to a node. Requires org admin.
+
+**Body:** `{ "policy_id": "uuid" }`
+
+**Response `201 Created`:** `SettingPolicyResponse`  
+**Errors:** `404` policy not found, `409` already attached
+
+---
+
+### DELETE /settings/nodes/{node_id}/policies/{policy_id}
+
+Detach a policy from a node. Requires org admin.
+
+**Response `204 No Content`**
+
