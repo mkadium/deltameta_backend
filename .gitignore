@@ -8,7 +8,6 @@
 
 # Local secrets / env
 /.env
-/.env.example
 /backend/.env
 
 # Development virtualenv and caches
@@ -27,3 +26,15 @@
 # SSH keys and other sensitive files
 /.ssh/
 
+# Ignore local workspace and project metadata
+/.cursor/
+/.github/
+
+# Ignore repo-level docs and helper files kept locally
+/CONTRIBUTING.md
+/agent_commands.log.additions
+/deltameta_backend
+/deltameta_backend.pub
+/user_tasks.txt
+# Ignore docs folder
+/docs/
