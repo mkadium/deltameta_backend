@@ -15,6 +15,11 @@
 **/__pycache__/
 **/*.py[cod]
 
+# Common virtualenv names (ignore any venv in repo)
+/venv/
+/.venv
+**/venv/
+
 # Testcases and dev requirements (keep tests local)
 /backend/testcases/
 /backend/requirements-dev.txt
@@ -38,3 +43,4 @@
 /user_tasks.txt
 # Ignore docs folder
 /docs/
+/venv/
