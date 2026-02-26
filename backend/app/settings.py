@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     primary_db_name: Optional[str] = None
     primary_db_schema: str = "deltameta"
 
+    # CORS — extra origins (comma-separated, e.g. "https://app.example.com,https://staging.example.com")
+    cors_origins: Optional[str] = None
+
     # JWT Auth settings
     jwt_secret_key: str = "change-me-in-production-use-a-long-random-string"
     jwt_algorithm: str = "HS256"

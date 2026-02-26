@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
@@ -30,6 +31,26 @@ app = FastAPI(
     description="Deltameta — Metadata Platform API",
 )
 logger = logging.getLogger("deltameta")
+
+# CORS — allow frontend origins (localhost + Vercel + optional CORS_ORIGINS env)
+_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+try:
+    from app.settings import settings
+    if settings.cors_origins:
+        _origins.extend(o.strip() for o in settings.cors_origins.split(",") if o.strip())
+except Exception:
+    pass
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Register routers
 try:
