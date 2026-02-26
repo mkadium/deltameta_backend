@@ -83,9 +83,13 @@ async def setup_test_db():
 
     async with _test_engine.begin() as conn:
         await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {_schema}"))
-        # Import setting_nodes models so they register in Base.metadata
+        # Import all models so they register in Base.metadata (auth, setting_nodes, resources, nav_items)
         import app.setting_nodes.models  # noqa: F401
+        import app.resources.models  # noqa: F401
+        import app.nav_items.models  # noqa: F401
         await conn.run_sync(Base.metadata.create_all)
+        # Ensure clean setting_nodes for tests (isolate from any migration seed)
+        await conn.execute(text(f"TRUNCATE {_schema}.setting_nodes CASCADE"))
 
     yield
 
