@@ -3,6 +3,12 @@ import os
 import sys
 from logging.config import fileConfig
 
+# Load .env from backend/ before importing app (works when run from any cwd)
+_env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+if os.path.exists(_env_path):
+    from dotenv import load_dotenv
+    load_dotenv(_env_path)
+
 from sqlalchemy import pool, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
@@ -16,6 +22,7 @@ from app.settings import settings
 from app.auth.models import Base
 import app.setting_nodes.models  # register SettingNode models in Base.metadata
 import app.resources.models  # register ResourceGroup/ResourceDefinition in Base.metadata
+import app.nav_items.models  # register NavItem models in Base.metadata
 
 # Alembic Config object
 config = context.config

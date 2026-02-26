@@ -1,11 +1,11 @@
 {
   "info": {
-    "name": "Deltameta — Auth API",
-    "description": "Complete Auth & Organization Hierarchy API collection for the Deltameta backend.\n\n**Quick Start:**\n1. Run `Register User` — a JWT token is auto-saved to the `token` variable.\n2. All subsequent requests use that token automatically via the collection-level Authorization header.\n3. Use `Login` to get a fresh token at any time.\n\n**Variables (set in Collection → Variables tab):**\n- `base_url` — default: `http://localhost:8000`\n- `token`    — auto-populated by Register / Login scripts",
+    "name": "Deltameta — Vercel",
+    "description": "Complete Auth & Organization Hierarchy API collection for the Deltameta backend.\n\n**Quick Start:**\n1. Run `Register User` — a JWT token is auto-saved to the `token` variable.\n2. All subsequent requests use that token automatically via the collection-level Authorization header.\n3. Use `Login` to get a fresh token at any time.\n\n**Variables (set in Collection → Variables tab):**\n- `base_url` — default: `https://deltameta-backend.vercel.app`\n- `token`    — auto-populated by Register / Login scripts",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "base_url", "value": "http://localhost:8000", "type": "string" },
+    { "key": "base_url", "value": "https://deltameta-backend.vercel.app", "type": "string" },
     { "key": "token", "value": "", "type": "string" },
     { "key": "user_id", "value": "", "type": "string" },
     { "key": "org_id", "value": "", "type": "string" },
