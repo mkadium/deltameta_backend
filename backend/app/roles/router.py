@@ -1,0 +1,228 @@
+"""
+Roles API router — CRUD for roles and assigning roles to users.
+System roles (is_system_role=True) cannot be deleted or modified by org admins.
+"""
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timezone
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.db import get_session
+from app.auth.models import Policy, Role, User
+from app.auth.schemas import MessageResponse, RoleCreate, RoleResponse, RoleUpdate, UserResponse
+from app.auth.dependencies import require_active_user, require_org_admin
+
+router = APIRouter(prefix="/roles", tags=["Roles"])
+
+
+# ---------------------------------------------------------------------------
+# CRUD
+# ---------------------------------------------------------------------------
+
+@router.get("", response_model=List[RoleResponse], summary="List roles for the current org")
+async def list_roles(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    current_user=Depends(require_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    q = (
+        select(Role)
+        .where(Role.org_id == current_user.org_id)
+        .options(selectinload(Role.policies))
+        .order_by(Role.name)
+        .offset(skip)
+        .limit(limit)
+    )
+    result = await session.execute(q)
+    return result.scalars().all()
+
+
+@router.post("", response_model=RoleResponse, status_code=status.HTTP_201_CREATED, summary="Create a role")
+async def create_role(
+    body: RoleCreate,
+    current_user=Depends(require_org_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    existing = await session.execute(
+        select(Role).where(Role.org_id == current_user.org_id, Role.name == body.name)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Role name already exists in this organization")
+
+    role = Role(
+        id=uuid.uuid4(),
+        org_id=current_user.org_id,
+        name=body.name,
+        description=body.description,
+        is_system_role=False,
+    )
+
+    if body.policy_ids:
+        policies = await _load_policies(body.policy_ids, current_user.org_id, session)
+        role.policies = policies
+
+    session.add(role)
+    await session.commit()
+
+    # Reload with relationships
+    result = await session.execute(
+        select(Role).where(Role.id == role.id).options(selectinload(Role.policies))
+    )
+    return result.scalar_one()
+
+
+@router.get("/{role_id}", response_model=RoleResponse, summary="Get a role by ID")
+async def get_role(
+    role_id: uuid.UUID,
+    current_user=Depends(require_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await _get_role_or_404(role_id, current_user.org_id, session, load_policies=True)
+
+
+@router.put("/{role_id}", response_model=RoleResponse, summary="Update a role (system roles are protected)")
+async def update_role(
+    role_id: uuid.UUID,
+    body: RoleUpdate,
+    current_user=Depends(require_org_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.execute(
+        select(Role)
+        .where(Role.id == role_id, Role.org_id == current_user.org_id)
+        .options(selectinload(Role.policies))
+    )
+    role = result.scalar_one_or_none()
+    if not role:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
+    if role.is_system_role:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="System roles cannot be modified")
+
+    if body.name is not None and body.name != role.name:
+        existing = await session.execute(
+            select(Role).where(Role.org_id == current_user.org_id, Role.name == body.name)
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Role name already exists")
+        role.name = body.name
+
+    if body.description is not None:
+        role.description = body.description
+
+    if body.policy_ids is not None:
+        role.policies = await _load_policies(body.policy_ids, current_user.org_id, session)
+
+    role.updated_at = datetime.now(timezone.utc)
+    await session.commit()
+
+    result = await session.execute(
+        select(Role).where(Role.id == role_id).options(selectinload(Role.policies))
+    )
+    return result.scalar_one()
+
+
+@router.delete("/{role_id}", response_model=MessageResponse, summary="Delete a role (system roles are protected)")
+async def delete_role(
+    role_id: uuid.UUID,
+    current_user=Depends(require_org_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    role = await _get_role_or_404(role_id, current_user.org_id, session)
+    if role.is_system_role:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="System roles cannot be deleted")
+    await session.delete(role)
+    await session.commit()
+    return MessageResponse(message=f"Role '{role.name}' deleted successfully")
+
+
+# ---------------------------------------------------------------------------
+# Role Assignment
+# ---------------------------------------------------------------------------
+
+@router.post("/{role_id}/assign/{user_id}", response_model=MessageResponse, summary="Assign a role to a user")
+async def assign_role_to_user(
+    role_id: uuid.UUID,
+    user_id: uuid.UUID,
+    current_user=Depends(require_org_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    role = await _get_role_or_404(role_id, current_user.org_id, session)
+
+    user_result = await session.execute(
+        select(User).where(User.id == user_id, User.org_id == current_user.org_id).options(selectinload(User.roles))
+    )
+    user = user_result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if any(r.id == role_id for r in user.roles):
+        return MessageResponse(message="User already has this role")
+
+    user.roles.append(role)
+    await session.commit()
+    return MessageResponse(message=f"Role '{role.name}' assigned to user '{user.name}'")
+
+
+@router.delete("/{role_id}/assign/{user_id}", response_model=MessageResponse, summary="Remove a role from a user")
+async def remove_role_from_user(
+    role_id: uuid.UUID,
+    user_id: uuid.UUID,
+    current_user=Depends(require_org_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    user_result = await session.execute(
+        select(User)
+        .where(User.id == user_id, User.org_id == current_user.org_id)
+        .options(selectinload(User.roles))
+    )
+    user = user_result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    role = next((r for r in user.roles if r.id == role_id), None)
+    if not role:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User does not have this role")
+
+    user.roles.remove(role)
+    await session.commit()
+    return MessageResponse(message=f"Role removed from user '{user.name}'")
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+async def _get_role_or_404(
+    role_id: uuid.UUID,
+    org_id: uuid.UUID,
+    session: AsyncSession,
+    load_policies: bool = False,
+) -> Role:
+    q = select(Role).where(Role.id == role_id, Role.org_id == org_id)
+    if load_policies:
+        q = q.options(selectinload(Role.policies))
+    result = await session.execute(q)
+    role = result.scalar_one_or_none()
+    if not role:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
+    return role
+
+
+async def _load_policies(policy_ids: List[uuid.UUID], org_id: uuid.UUID, session: AsyncSession) -> List[Policy]:
+    result = await session.execute(
+        select(Policy).where(Policy.id.in_(policy_ids), Policy.org_id == org_id)
+    )
+    policies = result.scalars().all()
+    if len(policies) != len(policy_ids):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="One or more policy IDs not found in this organization",
+        )
+    return list(policies)

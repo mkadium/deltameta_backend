@@ -1,0 +1,886 @@
+{
+  "info": {
+    "name": "Deltameta — Auth API",
+    "description": "Complete Auth & Organization Hierarchy API collection for the Deltameta backend.\n\n**Quick Start:**\n1. Run `Register User` — a JWT token is auto-saved to the `token` variable.\n2. All subsequent requests use that token automatically via the collection-level Authorization header.\n3. Use `Login` to get a fresh token at any time.\n\n**Variables (set in Collection → Variables tab):**\n- `base_url` — default: `http://localhost:8000`\n- `token`    — auto-populated by Register / Login scripts",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "user_id", "value": "", "type": "string" },
+    { "key": "org_id", "value": "", "type": "string" },
+    { "key": "second_org_id", "value": "", "type": "string" },
+    { "key": "domain_id", "value": "", "type": "string" },
+    { "key": "team_id", "value": "", "type": "string" },
+    { "key": "child_team_id", "value": "", "type": "string" },
+    { "key": "role_id", "value": "", "type": "string" },
+    { "key": "policy_id", "value": "", "type": "string" },
+    { "key": "subscription_id", "value": "", "type": "string" },
+    { "key": "setting_node_id", "value": "", "type": "string" },
+    { "key": "setting_child_id", "value": "", "type": "string" },
+    { "key": "setting_leaf_id", "value": "", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "1. Register User",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/auth/register",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "register"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"John Doe\",\n  \"display_name\": \"John\",\n  \"email\": \"john@example.com\",\n  \"username\": \"johndoe\",\n  \"password\": \"Test@1234\",\n  \"org_name\": \"Acme Corp\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "description": "Creates a new user and a default organization.\n\n- `org_name` is optional — auto-generated from the user's name if omitted.\n- First user of an org is automatically an org admin (`is_admin: true`).\n- Returns the created `UserResponse`.\n\n**Success:** `201 Created`\n**Errors:** `409` — email or username already taken, `422` — validation error."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('Response has user id', () => pm.expect(body).to.have.property('id'));",
+              "pm.test('Response has email', () => pm.expect(body).to.have.property('email'));",
+              "pm.test('Has default_org_id', () => pm.expect(body).to.have.property('default_org_id'));",
+              "if(body.id) pm.collectionVariables.set('user_id', body.id);",
+              "if(body.default_org_id) pm.collectionVariables.set('org_id', body.default_org_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/auth/login",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "login"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"login\": \"john@example.com\",\n  \"password\": \"Test@1234\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "description": "Authenticates a user by email or username and returns a JWT token.\n\n- `login` can be the user's **email** or **username**.\n- The JWT token is automatically saved to the `token` collection variable for all subsequent requests.\n\n**Success:** `200 OK` → `{ access_token, token_type, expires_in }`\n**Errors:** `401` — wrong credentials, `403` — account locked/inactive."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "if (body.access_token) {",
+              "    pm.collectionVariables.set('token', body.access_token);",
+              "    console.log('Token saved to collection variable.');",
+              "}",
+              "pm.test('access_token present', () => pm.expect(body).to.have.property('access_token'));",
+              "pm.test('token_type is bearer', () => pm.expect(body.token_type).to.eql('bearer'));",
+              "pm.test('expires_in is a number', () => pm.expect(body.expires_in).to.be.a('number'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Get Current User (me)",
+      "request": {
+        "auth": { "type": "inherit" },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/auth/me",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "me"]
+        },
+        "description": "Returns the profile of the currently authenticated user.\n\n**Requires:** Bearer token (auto-set from Login).\n\n**Success:** `200 OK` → `UserResponse`\n**Errors:** `401` — missing/invalid token, `403` — inactive account."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('user_id', body.id);",
+              "pm.collectionVariables.set('org_id', body.default_org_id || body.org_id);",
+              "pm.test('Response has email', () => pm.expect(body).to.have.property('email'));",
+              "pm.test('Has default_org_id', () => pm.expect(body).to.have.property('default_org_id'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Update Profile (me)",
+      "request": {
+        "auth": { "type": "inherit" },
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/auth/me",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "me"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"John Updated\",\n  \"display_name\": \"Johnny\",\n  \"description\": \"Senior Data Engineer\",\n  \"image\": \"https://example.com/avatar.png\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "description": "Updates the current user's profile fields. All fields are optional — only send what you want to change.\n\nUse `default_org_id` field to switch your active organization context (must be an org you belong to).\n\n**Requires:** Bearer token.\n\n**Success:** `200 OK` → Updated `UserResponse`\n**Errors:** `401/403`."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('Name updated', () => {",
+              "    pm.expect(pm.response.json().name).to.eql('John Updated');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4b. Switch Default Org",
+      "request": {
+        "auth": { "type": "inherit" },
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"] },
+        "body": { "mode": "raw", "raw": "{\n  \"default_org_id\": \"{{second_org_id}}\"\n}", "options": { "raw": { "language": "json" } } },
+        "description": "Switch active organization. Run after creating a second org and setting {{second_org_id}}."
+      },
+      "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('default_org_id updated', () => pm.expect(pm.response.json().default_org_id).to.eql(pm.collectionVariables.get('second_org_id')));"]}}]
+    },
+    {
+      "name": "4c. List My Orgs",
+      "request": {
+        "auth": { "type": "inherit" },
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/auth/me/orgs", "host": ["{{base_url}}"], "path": ["auth", "me", "orgs"] },
+        "description": "Returns all organizations the current user belongs to."
+      },
+      "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));","pm.test('At least 1 org', () => pm.expect(pm.response.json().length).to.be.greaterThan(0));"]}}]
+    },
+    {
+      "name": "5. Refresh Token",
+      "request": {
+        "auth": { "type": "inherit" },
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/auth/refresh",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "refresh"]
+        },
+        "description": "Issues a new JWT token with a fresh expiry using the current valid token.\n\nUseful for extending sessions without re-authenticating.\n\n**Requires:** Bearer token.\n\n**Success:** `200 OK` → `{ access_token, token_type, expires_in }`"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "if (body.access_token) {",
+              "    pm.collectionVariables.set('token', body.access_token);",
+              "    console.log('Token refreshed and saved.');",
+              "}",
+              "pm.test('New token returned', () => pm.expect(body).to.have.property('access_token'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Logout",
+      "request": {
+        "auth": { "type": "inherit" },
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/auth/logout",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "logout"]
+        },
+        "description": "Instructs the client to discard the token. No server-side blacklist is maintained in this default implementation — token invalidation is client-side.\n\n**Requires:** Bearer token.\n\n**Success:** `200 OK` → `{ message }`"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('Message returned', () => {",
+              "    pm.expect(pm.response.json()).to.have.property('message');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Forgot Password",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/auth/forgot-password",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "forgot-password"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"john@example.com\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "description": "Initiates a password reset flow for the given email address.\n\n**Stub implementation** — always returns success to prevent user enumeration. Production flow: generates a token, stores it, and sends a reset email.\n\n**No auth required.**\n\n**Success:** `200 OK` → `{ message }`"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('Message returned', () => pm.expect(pm.response.json()).to.have.property('message'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Reset Password",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/auth/reset-password",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "reset-password"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reset_token\": \"<token-from-email>\",\n  \"new_password\": \"NewPass@5678\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "description": "Resets the user's password using a token received via email.\n\n**Stub** — currently returns `501 Not Implemented`. Will validate the token from DB, update the hashed password, and invalidate the token in production.\n\n**No auth required.**\n\n**Expected (stub):** `501 Not Implemented`"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 501 (stub)', () => pm.response.to.have.status(501));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Get Auth Config (org admin)",
+      "request": {
+        "auth": { "type": "inherit" },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/auth/config",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "config"]
+        },
+        "description": "Returns the JWT and lockout configuration for the current user's organization.\n\n**Requires:** Org admin token (`is_admin: true`).\n\n**Success:** `200 OK` → `AuthConfigResponse`\n```json\n{\n  \"org_id\": \"...\",\n  \"jwt_expiry_minutes\": 60,\n  \"max_failed_attempts\": 5,\n  \"lockout_duration_minutes\": 15,\n  \"sso_provider\": \"default\",\n  \"updated_at\": \"...\"\n}\n```\n**Errors:** `403` — not an org admin."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Has jwt_expiry_minutes', () => pm.expect(body).to.have.property('jwt_expiry_minutes'));",
+              "pm.test('Has max_failed_attempts', () => pm.expect(body).to.have.property('max_failed_attempts'));",
+              "pm.test('Has lockout_duration_minutes', () => pm.expect(body).to.have.property('lockout_duration_minutes'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Update Auth Config (org admin)",
+      "request": {
+        "auth": { "type": "inherit" },
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/auth/config",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "config"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jwt_expiry_minutes\": 120,\n  \"max_failed_attempts\": 10,\n  \"lockout_duration_minutes\": 30\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "description": "Updates the JWT token expiry and lockout policy for the organization.\n\n**Requires:** Org admin token (`is_admin: true`).\n\n| Field | Description | Min | Max |\n|---|---|---|---|\n| `jwt_expiry_minutes` | Token validity in minutes | 1 | 10080 (7 days) |\n| `max_failed_attempts` | Failed logins before lockout | 1 | 100 |\n| `lockout_duration_minutes` | Lockout window in minutes | 1 | 1440 (24h) |\n\n**Success:** `200 OK` → Updated `AuthConfigResponse`\n**Errors:** `403` — not an org admin, `422` — value out of range."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('jwt_expiry_minutes updated to 120', () => pm.expect(body.jwt_expiry_minutes).to.eql(120));",
+              "pm.test('max_failed_attempts updated to 10', () => pm.expect(body.max_failed_attempts).to.eql(10));",
+              "pm.test('lockout_duration_minutes updated to 30', () => pm.expect(body.lockout_duration_minutes).to.eql(30));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Domains",
+      "item": [
+        {
+          "name": "List Domains",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/domains", "host": ["{{base_url}}"], "path": ["domains"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"]}}]
+        },
+        {
+          "name": "Create Domain",
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"name\": \"Engineering\",\n  \"description\": \"Engineering domain\",\n  \"domain_type\": \"Technical\"\n}"},
+            "url": { "raw": "{{base_url}}/domains", "host": ["{{base_url}}"], "path": ["domains"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201', () => pm.response.to.have.status(201));","const body = pm.response.json();","pm.collectionVariables.set('domain_id', body.id);","pm.test('Domain has name', () => pm.expect(body.name).to.eql('Engineering'));"]}}]
+        },
+        {
+          "name": "Get Domain",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/domains/{{domain_id}}", "host": ["{{base_url}}"], "path": ["domains","{{domain_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Correct domain', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('domain_id')));"]}}]
+        },
+        {
+          "name": "Update Domain",
+          "request": {
+            "method": "PUT",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"description\": \"Updated Engineering domain\"\n}"},
+            "url": { "raw": "{{base_url}}/domains/{{domain_id}}", "host": ["{{base_url}}"], "path": ["domains","{{domain_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Description updated', () => pm.expect(pm.response.json().description).to.eql('Updated Engineering domain'));"]}}]
+        },
+        {
+          "name": "Delete Domain",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/domains/{{domain_id}}", "host": ["{{base_url}}"], "path": ["domains","{{domain_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        }
+      ]
+    },
+    {
+      "name": "Teams",
+      "item": [
+        {
+          "name": "List Teams",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/teams", "host": ["{{base_url}}"], "path": ["teams"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"]}}]
+        },
+        {
+          "name": "Create Business Unit",
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"name\": \"Technology BU\",\n  \"team_type\": \"business_unit\",\n  \"description\": \"Technology Business Unit\",\n  \"public_team_view\": true\n}"},
+            "url": { "raw": "{{base_url}}/teams", "host": ["{{base_url}}"], "path": ["teams"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201', () => pm.response.to.have.status(201));","const body = pm.response.json();","pm.collectionVariables.set('team_id', body.id);","pm.test('BU created', () => pm.expect(body.team_type).to.eql('business_unit'));"]}}]
+        },
+        {
+          "name": "Create Child Team (Division)",
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"name\": \"Engineering Division\",\n  \"team_type\": \"division\",\n  \"parent_team_id\": \"{{team_id}}\"\n}"},
+            "url": { "raw": "{{base_url}}/teams", "host": ["{{base_url}}"], "path": ["teams"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201', () => pm.response.to.have.status(201));","pm.collectionVariables.set('child_team_id', pm.response.json().id);","pm.test('Has parent', () => pm.expect(pm.response.json().parent_team_id).to.eql(pm.collectionVariables.get('team_id')));"]}}]
+        },
+        {
+          "name": "Get Team Hierarchy",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/teams/{{team_id}}/hierarchy", "host": ["{{base_url}}"], "path": ["teams","{{team_id}}","hierarchy"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Has children', () => pm.expect(pm.response.json().children).to.be.an('array'));"]}}]
+        },
+        {
+          "name": "Get Team",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/teams/{{team_id}}", "host": ["{{base_url}}"], "path": ["teams","{{team_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "Update Team",
+          "request": {
+            "method": "PUT",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"description\": \"Updated BU description\"\n}"},
+            "url": { "raw": "{{base_url}}/teams/{{team_id}}", "host": ["{{base_url}}"], "path": ["teams","{{team_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "List Team Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/teams/{{team_id}}/members", "host": ["{{base_url}}"], "path": ["teams","{{team_id}}","members"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"]}}]
+        },
+        {
+          "name": "Delete Team",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/teams/{{child_team_id}}", "host": ["{{base_url}}"], "path": ["teams","{{child_team_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        }
+      ]
+    },
+    {
+      "name": "Policies",
+      "item": [
+        {
+          "name": "List Policies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/policies", "host": ["{{base_url}}"], "path": ["policies"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "Create Policy",
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"name\": \"Read Catalog\",\n  \"description\": \"Allow read access to catalog datasets\",\n  \"rule_name\": \"allow_read_catalog\",\n  \"resource\": \"catalog.dataset\",\n  \"operations\": [\"view\"],\n  \"conditions\": [\n    {\"attr\": \"team\", \"op\": \"=\", \"value\": \"data-analysts\"}\n  ]\n}"},
+            "url": { "raw": "{{base_url}}/policies", "host": ["{{base_url}}"], "path": ["policies"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201', () => pm.response.to.have.status(201));","pm.collectionVariables.set('policy_id', pm.response.json().id);","pm.test('Policy name', () => pm.expect(pm.response.json().name).to.eql('Read Catalog'));"]}}]
+        },
+        {
+          "name": "Get Policy",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/policies/{{policy_id}}", "host": ["{{base_url}}"], "path": ["policies","{{policy_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "Update Policy",
+          "request": {
+            "method": "PUT",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"operations\": [\"view\", \"create\"],\n  \"conditions\": [\n    {\"attr\": \"isAdmin\", \"op\": \"=\", \"value\": \"false\"}\n  ]\n}"},
+            "url": { "raw": "{{base_url}}/policies/{{policy_id}}", "host": ["{{base_url}}"], "path": ["policies","{{policy_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "Delete Policy",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/policies/{{policy_id}}", "host": ["{{base_url}}"], "path": ["policies","{{policy_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        }
+      ]
+    },
+    {
+      "name": "Roles",
+      "item": [
+        {
+          "name": "List Roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/roles", "host": ["{{base_url}}"], "path": ["roles"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "Create Role",
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"name\": \"Data Analyst\",\n  \"description\": \"Can view catalog data\",\n  \"policy_ids\": []\n}"},
+            "url": { "raw": "{{base_url}}/roles", "host": ["{{base_url}}"], "path": ["roles"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201', () => pm.response.to.have.status(201));","pm.collectionVariables.set('role_id', pm.response.json().id);","pm.test('Role name', () => pm.expect(pm.response.json().name).to.eql('Data Analyst'));"]}}]
+        },
+        {
+          "name": "Get Role",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/roles/{{role_id}}", "host": ["{{base_url}}"], "path": ["roles","{{role_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "Update Role",
+          "request": {
+            "method": "PUT",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"description\": \"Can view and export catalog data\"\n}"},
+            "url": { "raw": "{{base_url}}/roles/{{role_id}}", "host": ["{{base_url}}"], "path": ["roles","{{role_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "Assign Role to Me",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/roles/{{role_id}}/assign/{{user_id}}", "host": ["{{base_url}}"], "path": ["roles","{{role_id}}","assign","{{user_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "Remove Role from Me",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/roles/{{role_id}}/assign/{{user_id}}", "host": ["{{base_url}}"], "path": ["roles","{{role_id}}","assign","{{user_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "Delete Role",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/roles/{{role_id}}", "host": ["{{base_url}}"], "path": ["roles","{{role_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        }
+      ]
+    },
+    {
+      "name": "Organizations (CRUD & Membership)",
+      "item": [
+        {
+          "name": "List My Organizations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/orgs", "host": ["{{base_url}}"], "path": ["orgs"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","const body = pm.response.json();","pm.test('Returns array', () => pm.expect(body).to.be.an('array'));","pm.test('At least one org', () => pm.expect(body.length).to.be.greaterThan(0));","if(body.length > 0) pm.collectionVariables.set('org_id', body[0].id);"]}}]
+        },
+        {
+          "name": "Create New Organization",
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"name\": \"Acme Corp\",\n  \"slug\": \"acme-corp\",\n  \"description\": \"Second organization for testing multi-org\",\n  \"contact_email\": \"admin@acme.com\"\n}","options":{"raw":{"language":"json"}}},
+            "url": { "raw": "{{base_url}}/orgs", "host": ["{{base_url}}"], "path": ["orgs"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201', () => pm.response.to.have.status(201));","const body = pm.response.json();","pm.collectionVariables.set('second_org_id', body.id);","pm.test('Has id', () => pm.expect(body).to.have.property('id'));","pm.test('Name matches', () => pm.expect(body.name).to.eql('Acme Corp'));"]}}]
+        },
+        {
+          "name": "Get Organization by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/orgs/{{org_id}}", "host": ["{{base_url}}"], "path": ["orgs","{{org_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Has slug', () => pm.expect(pm.response.json()).to.have.property('slug'));"]}}]
+        },
+        {
+          "name": "Update Organization",
+          "request": {
+            "method": "PUT",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"description\": \"Updated org description\",\n  \"contact_email\": \"new-admin@company.com\"\n}","options":{"raw":{"language":"json"}}},
+            "url": { "raw": "{{base_url}}/orgs/{{org_id}}", "host": ["{{base_url}}"], "path": ["orgs","{{org_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Contact email updated', () => pm.expect(pm.response.json().contact_email).to.eql('new-admin@company.com'));"]}}]
+        },
+        {
+          "name": "Delete (Soft) Organization",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/orgs/{{second_org_id}}", "host": ["{{base_url}}"], "path": ["orgs","{{second_org_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Deactivated', () => pm.expect(pm.response.json().is_active).to.eql(false));"]}}]
+        },
+        {
+          "name": "List Org Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/orgs/{{org_id}}/members", "host": ["{{base_url}}"], "path": ["orgs","{{org_id}}","members"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));","pm.test('At least 1 member', () => pm.expect(pm.response.json().length).to.be.greaterThan(0));"]}}]
+        },
+        {
+          "name": "Add User to Org (requires user_id)",
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"is_org_admin\": false\n}","options":{"raw":{"language":"json"}}},
+            "url": { "raw": "{{base_url}}/orgs/{{org_id}}/members/{{user_id}}", "host": ["{{base_url}}"], "path": ["orgs","{{org_id}}","members","{{user_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200 or 400', () => pm.expect([200,400]).to.include(pm.response.code));"]}}]
+        },
+        {
+          "name": "Remove User from Org (requires user_id)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/orgs/{{org_id}}/members/{{user_id}}", "host": ["{{base_url}}"], "path": ["orgs","{{org_id}}","members","{{user_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200 or 400', () => pm.expect([200,400]).to.include(pm.response.code));"]}}]
+        }
+      ]
+    },
+    {
+      "name": "Org Preferences",
+      "item": [
+        {
+          "name": "Get Org Preferences",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/org/preferences", "host": ["{{base_url}}"], "path": ["org","preferences"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Has org name', () => pm.expect(pm.response.json().name).to.be.a('string'));"]}}]
+        },
+        {
+          "name": "Update Org Preferences",
+          "request": {
+            "method": "PUT",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"description\": \"Our metadata platform organization\",\n  \"contact_email\": \"admin@company.com\"\n}"},
+            "url": { "raw": "{{base_url}}/org/preferences", "host": ["{{base_url}}"], "path": ["org","preferences"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Contact email saved', () => pm.expect(pm.response.json().contact_email).to.eql('admin@company.com'));"]}}]
+        },
+        {
+          "name": "Get Org Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/org/preferences/stats", "host": ["{{base_url}}"], "path": ["org","preferences","stats"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","const d = pm.response.json();","pm.test('Has user count', () => pm.expect(d.total_users).to.be.a('number'));","pm.test('Has team count', () => pm.expect(d.total_teams).to.be.a('number'));"]}}]
+        }
+      ]
+    },
+    {
+      "name": "Subscriptions",
+      "item": [
+        {
+          "name": "List Subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/subscriptions", "host": ["{{base_url}}"], "path": ["subscriptions"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"]}}]
+        },
+        {
+          "name": "Create Subscription (Dataset)",
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"resource_type\": \"dataset\",\n  \"resource_id\": \"00000000-0000-0000-0000-000000000001\",\n  \"notify_on_update\": true\n}"},
+            "url": { "raw": "{{base_url}}/subscriptions", "host": ["{{base_url}}"], "path": ["subscriptions"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201', () => pm.response.to.have.status(201));","pm.collectionVariables.set('subscription_id', pm.response.json().id);","pm.test('resource_type is dataset', () => pm.expect(pm.response.json().resource_type).to.eql('dataset'));"]}}]
+        },
+        {
+          "name": "Get Subscription",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/subscriptions/{{subscription_id}}", "host": ["{{base_url}}"], "path": ["subscriptions","{{subscription_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "Delete Subscription",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/subscriptions/{{subscription_id}}", "host": ["{{base_url}}"], "path": ["subscriptions","{{subscription_id}}"] }
+          },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        }
+      ]
+    },
+    {
+      "name": "Settings (Dynamic Hierarchy)",
+      "description": "N-level dynamic settings tree. Each call is one level deep.\n\nFlow:\n  1. GET /settings              → root cards (Services, Applications, ...)\n  2. GET /settings?parent=services  → sub-cards (APIs, Databases, ...)\n  3. GET /settings?parent=databases → leaf nodes (PostgreSQL, MySQL, ...)\n  4. Leaf node nav_url → navigate to config page\n\nAdmins can create/update/delete nodes and set org/user overrides.\nABAC policies can be attached to nodes to restrict visibility.",
+      "item": [
+        {
+          "name": "1. List Root Settings Cards",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/settings", "host": ["{{base_url}}"], "path": ["settings"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));","const nodes = pm.response.json();","if(nodes.length > 0) pm.collectionVariables.set('setting_node_id', nodes[0].id);"]}}]
+        },
+        {
+          "name": "2. List Children (parent=services)",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/settings?parent=services", "host": ["{{base_url}}"], "path": ["settings"], "query": [{"key": "parent", "value": "services"}] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","const nodes = pm.response.json();","pm.test('Returns array', () => pm.expect(nodes).to.be.an('array'));","if(nodes.length > 0) pm.collectionVariables.set('setting_child_id', nodes[0].id);"]}}]
+        },
+        {
+          "name": "3. List Leaf Nodes (parent=databases)",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/settings?parent=databases", "host": ["{{base_url}}"], "path": ["settings"], "query": [{"key": "parent", "value": "databases"}] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","const nodes = pm.response.json();","pm.test('Returns array', () => pm.expect(nodes).to.be.an('array'));","const leaf = nodes.find(n => n.node_type === 'leaf');","if(leaf) { pm.collectionVariables.set('setting_leaf_id', leaf.id); pm.test('Leaf has nav_url', () => pm.expect(leaf.nav_url).to.be.a('string')); }"]}}]
+        },
+        {
+          "name": "4. Full Settings Tree",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/settings/tree", "host": ["{{base_url}}"], "path": ["settings","tree"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"]}}]
+        },
+        {
+          "name": "5. Tree from Parent (parent=services)",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/settings/tree?parent=services", "host": ["{{base_url}}"], "path": ["settings","tree"], "query": [{"key": "parent", "value": "services"}] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "6. Get Single Node",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/settings/node/{{setting_node_id}}", "host": ["{{base_url}}"], "path": ["settings","node","{{setting_node_id}}"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","const n = pm.response.json();","pm.test('Has slug', () => pm.expect(n).to.have.property('slug'));","pm.test('Has is_enabled', () => pm.expect(n).to.have.property('is_enabled'));","pm.test('Has slug_path', () => pm.expect(n).to.have.property('slug_path'));"]}}]
+        },
+        {
+          "name": "7. Create Root Node (Admin)",
+          "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"slug\": \"services\",\n  \"display_label\": \"Services\",\n  \"description\": \"Connect to external services and APIs\",\n  \"icon\": \"server\",\n  \"node_type\": \"category\",\n  \"sort_order\": 1\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/settings/nodes", "host": ["{{base_url}}"], "path": ["settings","nodes"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201', () => pm.response.to.have.status(201));","const n = pm.response.json();","pm.collectionVariables.set('setting_node_id', n.id);","pm.test('slug_path auto-computed', () => pm.expect(n.slug_path).to.eql('services'));","pm.test('has_children is false', () => pm.expect(n.has_children).to.eql(false));"]}}]
+        },
+        {
+          "name": "8. Create Child Node (databases under services)",
+          "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"parent_id\": \"{{setting_node_id}}\",\n  \"slug\": \"databases\",\n  \"display_label\": \"Databases\",\n  \"description\": \"Relational and non-relational databases\",\n  \"icon\": \"database\",\n  \"node_type\": \"category\",\n  \"sort_order\": 2\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/settings/nodes", "host": ["{{base_url}}"], "path": ["settings","nodes"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201', () => pm.response.to.have.status(201));","const n = pm.response.json();","pm.collectionVariables.set('setting_child_id', n.id);","pm.test('slug_path is services.databases', () => pm.expect(n.slug_path).to.eql('services.databases'));"]}}]
+        },
+        {
+          "name": "9. Create Leaf Node (postgres under databases)",
+          "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"parent_id\": \"{{setting_child_id}}\",\n  \"slug\": \"postgres\",\n  \"display_label\": \"PostgreSQL\",\n  \"description\": \"Connect to a PostgreSQL database\",\n  \"icon\": \"postgresql\",\n  \"node_type\": \"leaf\",\n  \"nav_url\": \"/integrations/postgres/config\",\n  \"sort_order\": 1\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/settings/nodes", "host": ["{{base_url}}"], "path": ["settings","nodes"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201', () => pm.response.to.have.status(201));","const n = pm.response.json();","pm.collectionVariables.set('setting_leaf_id', n.id);","pm.test('nav_url set', () => pm.expect(n.nav_url).to.eql('/integrations/postgres/config'));","pm.test('slug_path correct', () => pm.expect(n.slug_path).to.eql('services.databases.postgres'));"]}}]
+        },
+        {
+          "name": "10. Update Node",
+          "request": { "method": "PUT", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"description\": \"Updated description\",\n  \"sort_order\": 0\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/settings/nodes/{{setting_node_id}}", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_node_id}}"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Description updated', () => pm.expect(pm.response.json().description).to.eql('Updated description'));"]}}]
+        },
+        {
+          "name": "11. Set Org Override (disable)",
+          "request": { "method": "PUT", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"is_enabled\": false,\n  \"config\": {}\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/settings/nodes/{{setting_child_id}}/org-override", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_child_id}}","org-override"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('is_enabled false', () => pm.expect(pm.response.json().is_enabled).to.eql(false));"]}}]
+        },
+        {
+          "name": "12. Reset Org Override",
+          "request": { "method": "DELETE", "header": [], "url": { "raw": "{{base_url}}/settings/nodes/{{setting_child_id}}/org-override", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_child_id}}","org-override"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 204', () => pm.response.to.have.status(204));"]}}]
+        },
+        {
+          "name": "13. Set User Override (hide for self)",
+          "request": { "method": "PUT", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"is_enabled\": false\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/settings/nodes/{{setting_leaf_id}}/user-override", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_leaf_id}}","user-override"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('is_enabled false', () => pm.expect(pm.response.json().is_enabled).to.eql(false));"]}}]
+        },
+        {
+          "name": "14. Reset User Override",
+          "request": { "method": "DELETE", "header": [], "url": { "raw": "{{base_url}}/settings/nodes/{{setting_leaf_id}}/user-override", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_leaf_id}}","user-override"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 204', () => pm.response.to.have.status(204));"]}}]
+        },
+        {
+          "name": "15. Attach Policy to Node",
+          "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"policy_id\": \"{{policy_id}}\"\n}","options":{"raw":{"language":"json"}}}, "url": { "raw": "{{base_url}}/settings/nodes/{{setting_node_id}}/policies", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_node_id}}","policies"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 201 or 409', () => pm.expect([201,409]).to.include(pm.response.code));"]}}]
+        },
+        {
+          "name": "16. List Node Policies",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/settings/nodes/{{setting_node_id}}/policies", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_node_id}}","policies"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"]}}]
+        },
+        {
+          "name": "17. Soft Delete Node",
+          "request": { "method": "DELETE", "header": [], "url": { "raw": "{{base_url}}/settings/nodes/{{setting_leaf_id}}", "host": ["{{base_url}}"], "path": ["settings","nodes","{{setting_leaf_id}}"] } },
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":["pm.test('Status 200', () => pm.response.to.have.status(200));","pm.test('is_active false', () => pm.expect(pm.response.json().is_active).to.eql(false));"]}}]
+        }
+      ]
+    }
+  ]
+}

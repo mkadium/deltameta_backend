@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deltameta-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: deltameta-backend
+  template:
+    metadata:
+      labels:
+        app: deltameta-backend
+    spec:
+      containers:
+        - name: app
+          image: myregistry/deltameta:latest
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: \"100m\"
+              memory: \"128Mi\"
+            limits:
+              cpu: \"500m\"
+              memory: \"512Mi\"
+          envFrom:
+            - secretRef:
+                name: deltameta-secrets
+

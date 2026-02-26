@@ -1,0 +1,48 @@
+# Deltameta .gitignore - generated
+
+# Logs and agent artifacts
+/agent_commands.log
+/tasks.md
+/uvicorn.log
+/backend/uvicorn.log
+
+# Telemetry logs (daily log files)
+/backend/telemetry_logs/*.log
+
+# Local secrets / env
+/.env
+/backend/.env
+
+# Development virtualenv and caches
+/backend/venv/
+**/__pycache__/
+**/*.py[cod]
+
+# Common virtualenv names (ignore any venv in repo)
+/venv/
+/.venv
+**/venv/
+
+# Testcases and dev requirements (keep tests local)
+/backend/testcases/
+/backend/requirements-dev.txt
+
+# Repo metadata files to keep local only
+/master_prompt.md
+/project_overview.md
+
+# SSH keys and other sensitive files
+/.ssh/
+
+# Ignore local workspace and project metadata
+/.cursor/
+/.github/
+
+# Ignore repo-level docs and helper files kept locally
+/CONTRIBUTING.md
+/agent_commands.log.additions
+/deltameta_backend
+/deltameta_backend.pub
+/user_tasks.txt
+# Ignore docs folder
+/docs/
