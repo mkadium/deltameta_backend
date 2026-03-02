@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Deltameta \u2014 Auth API",
-    "description": "Complete Auth & Organization Hierarchy API collection for the Deltameta backend.\n\n**Quick Start:**\n1. Run `Register User` \u2014 a JWT token is auto-saved to the `token` variable.\n2. All subsequent requests use that token automatically via the collection-level Authorization header.\n3. Use `Login` to get a fresh token at any time.\n\n**Variables (set in Collection \u2192 Variables tab):**\n- `base_url` \u2014 default: `http://localhost:8000`\n- `token`    \u2014 auto-populated by Register / Login scripts",
+    "name": "Deltameta — Auth API",
+    "description": "Complete Auth & Organization Hierarchy API collection for the Deltameta backend.\n\n**Quick Start:**\n1. Run `Register User` — a JWT token is auto-saved to the `token` variable.\n2. All subsequent requests use that token automatically via the collection-level Authorization header.\n3. Use `Login` to get a fresh token at any time.\n\n**Variables (set in Collection → Variables tab):**\n- `base_url` — default: `http://localhost:8000`\n- `token`    — auto-populated by Register / Login scripts",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -174,6 +174,26 @@
       "key": "category_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "dataset_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "asset_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "column_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tag_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {
@@ -216,7 +236,7 @@
             }
           }
         },
-        "description": "Creates a new user and a default organization.\n\n- `org_name` is optional \u2014 auto-generated from the user's name if omitted.\n- First user of an org is automatically an org admin (`is_admin: true`).\n- Returns the created `UserResponse`.\n\n**Success:** `201 Created`\n**Errors:** `409` \u2014 email or username already taken, `422` \u2014 validation error."
+        "description": "Creates a new user and a default organization.\n\n- `org_name` is optional — auto-generated from the user's name if omitted.\n- First user of an org is automatically an org admin (`is_admin: true`).\n- Returns the created `UserResponse`.\n\n**Success:** `201 Created`\n**Errors:** `409` — email or username already taken, `422` — validation error."
       },
       "event": [
         {
@@ -265,7 +285,7 @@
             }
           }
         },
-        "description": "Authenticates a user by email or username and returns a JWT token.\n\n- `login` can be the user's **email** or **username**.\n- The JWT token is automatically saved to the `token` collection variable for all subsequent requests.\n\n**Success:** `200 OK` \u2192 `{ access_token, token_type, expires_in }`\n**Errors:** `401` \u2014 wrong credentials, `403` \u2014 account locked/inactive."
+        "description": "Authenticates a user by email or username and returns a JWT token.\n\n- `login` can be the user's **email** or **username**.\n- The JWT token is automatically saved to the `token` collection variable for all subsequent requests.\n\n**Success:** `200 OK` → `{ access_token, token_type, expires_in }`\n**Errors:** `401` — wrong credentials, `403` — account locked/inactive."
       },
       "event": [
         {
@@ -305,7 +325,7 @@
             "me"
           ]
         },
-        "description": "Returns the profile of the currently authenticated user.\n\n**Requires:** Bearer token (auto-set from Login).\n\n**Success:** `200 OK` \u2192 `UserResponse`\n**Errors:** `401` \u2014 missing/invalid token, `403` \u2014 inactive account."
+        "description": "Returns the profile of the currently authenticated user.\n\n**Requires:** Bearer token (auto-set from Login).\n\n**Success:** `200 OK` → `UserResponse`\n**Errors:** `401` — missing/invalid token, `403` — inactive account."
       },
       "event": [
         {
@@ -356,7 +376,7 @@
             }
           }
         },
-        "description": "Updates the current user's profile fields. All fields are optional \u2014 only send what you want to change.\n\nUse `default_org_id` field to switch your active organization context (must be an org you belong to).\n\n**Requires:** Bearer token.\n\n**Success:** `200 OK` \u2192 Updated `UserResponse`\n**Errors:** `401/403`."
+        "description": "Updates the current user's profile fields. All fields are optional — only send what you want to change.\n\nUse `default_org_id` field to switch your active organization context (must be an org you belong to).\n\n**Requires:** Bearer token.\n\n**Success:** `200 OK` → Updated `UserResponse`\n**Errors:** `401/403`."
       },
       "event": [
         {
@@ -473,7 +493,7 @@
             "refresh"
           ]
         },
-        "description": "Issues a new JWT token with a fresh expiry using the current valid token.\n\nUseful for extending sessions without re-authenticating.\n\n**Requires:** Bearer token.\n\n**Success:** `200 OK` \u2192 `{ access_token, token_type, expires_in }`"
+        "description": "Issues a new JWT token with a fresh expiry using the current valid token.\n\nUseful for extending sessions without re-authenticating.\n\n**Requires:** Bearer token.\n\n**Success:** `200 OK` → `{ access_token, token_type, expires_in }`"
       },
       "event": [
         {
@@ -511,7 +531,7 @@
             "logout"
           ]
         },
-        "description": "Instructs the client to discard the token. No server-side blacklist is maintained in this default implementation \u2014 token invalidation is client-side.\n\n**Requires:** Bearer token.\n\n**Success:** `200 OK` \u2192 `{ message }`"
+        "description": "Instructs the client to discard the token. No server-side blacklist is maintained in this default implementation — token invalidation is client-side.\n\n**Requires:** Bearer token.\n\n**Success:** `200 OK` → `{ message }`"
       },
       "event": [
         {
@@ -557,7 +577,7 @@
             }
           }
         },
-        "description": "Initiates a password reset flow for the given email address.\n\n**Stub implementation** \u2014 always returns success to prevent user enumeration. Production flow: generates a token, stores it, and sends a reset email.\n\n**No auth required.**\n\n**Success:** `200 OK` \u2192 `{ message }`"
+        "description": "Initiates a password reset flow for the given email address.\n\n**Stub implementation** — always returns success to prevent user enumeration. Production flow: generates a token, stores it, and sends a reset email.\n\n**No auth required.**\n\n**Success:** `200 OK` → `{ message }`"
       },
       "event": [
         {
@@ -601,7 +621,7 @@
             }
           }
         },
-        "description": "Resets the user's password using a token received via email.\n\n**Stub** \u2014 currently returns `501 Not Implemented`. Will validate the token from DB, update the hashed password, and invalidate the token in production.\n\n**No auth required.**\n\n**Expected (stub):** `501 Not Implemented`"
+        "description": "Resets the user's password using a token received via email.\n\n**Stub** — currently returns `501 Not Implemented`. Will validate the token from DB, update the hashed password, and invalidate the token in production.\n\n**No auth required.**\n\n**Expected (stub):** `501 Not Implemented`"
       },
       "event": [
         {
@@ -633,7 +653,7 @@
             "config"
           ]
         },
-        "description": "Returns the JWT and lockout configuration for the current user's organization.\n\n**Requires:** Org admin token (`is_admin: true`).\n\n**Success:** `200 OK` \u2192 `AuthConfigResponse`\n```json\n{\n  \"org_id\": \"...\",\n  \"jwt_expiry_minutes\": 60,\n  \"max_failed_attempts\": 5,\n  \"lockout_duration_minutes\": 15,\n  \"sso_provider\": \"default\",\n  \"updated_at\": \"...\"\n}\n```\n**Errors:** `403` \u2014 not an org admin."
+        "description": "Returns the JWT and lockout configuration for the current user's organization.\n\n**Requires:** Org admin token (`is_admin: true`).\n\n**Success:** `200 OK` → `AuthConfigResponse`\n```json\n{\n  \"org_id\": \"...\",\n  \"jwt_expiry_minutes\": 60,\n  \"max_failed_attempts\": 5,\n  \"lockout_duration_minutes\": 15,\n  \"sso_provider\": \"default\",\n  \"updated_at\": \"...\"\n}\n```\n**Errors:** `403` — not an org admin."
       },
       "event": [
         {
@@ -683,7 +703,7 @@
             }
           }
         },
-        "description": "Updates the JWT token expiry and lockout policy for the organization.\n\n**Requires:** Org admin token (`is_admin: true`).\n\n| Field | Description | Min | Max |\n|---|---|---|---|\n| `jwt_expiry_minutes` | Token validity in minutes | 1 | 10080 (7 days) |\n| `max_failed_attempts` | Failed logins before lockout | 1 | 100 |\n| `lockout_duration_minutes` | Lockout window in minutes | 1 | 1440 (24h) |\n\n**Success:** `200 OK` \u2192 Updated `AuthConfigResponse`\n**Errors:** `403` \u2014 not an org admin, `422` \u2014 value out of range."
+        "description": "Updates the JWT token expiry and lockout policy for the organization.\n\n**Requires:** Org admin token (`is_admin: true`).\n\n| Field | Description | Min | Max |\n|---|---|---|---|\n| `jwt_expiry_minutes` | Token validity in minutes | 1 | 10080 (7 days) |\n| `max_failed_attempts` | Failed logins before lockout | 1 | 100 |\n| `lockout_duration_minutes` | Lockout window in minutes | 1 | 1440 (24h) |\n\n**Success:** `200 OK` → Updated `AuthConfigResponse`\n**Errors:** `403` — not an org admin, `422` — value out of range."
       },
       "event": [
         {
@@ -800,7 +820,7 @@
                   "key": "limit",
                   "value": "50",
                   "disabled": true,
-                  "description": "Max records per page (1\u2013200)."
+                  "description": "Max records per page (1–200)."
                 }
               ]
             },
@@ -828,7 +848,7 @@
                 "teams"
               ]
             },
-            "description": "org_id is REQUIRED \u2014 must be an org the caller is an admin of.",
+            "description": "org_id is REQUIRED — must be an org the caller is an admin of.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"org_id\": \"{{org_id}}\",\n  \"name\": \"Engineering\",\n  \"team_type\": \"department\",\n  \"display_name\": \"Engineering Team\",\n  \"description\": \"Core engineering department\",\n  \"public_team_view\": false,\n  \"parent_team_id\": null\n}",
@@ -1315,7 +1335,7 @@
                   "key": "limit",
                   "value": "50",
                   "disabled": true,
-                  "description": "Max records per page (1\u2013200)."
+                  "description": "Max records per page (1–200)."
                 }
               ]
             },
@@ -1629,7 +1649,7 @@
                   "key": "limit",
                   "value": "50",
                   "disabled": true,
-                  "description": "Max records per page (1\u2013200)."
+                  "description": "Max records per page (1–200)."
                 }
               ]
             },
@@ -2082,7 +2102,7 @@
                   "key": "limit",
                   "value": "50",
                   "disabled": true,
-                  "description": "Max records per page (1\u2013200)."
+                  "description": "Max records per page (1–200)."
                 }
               ]
             },
@@ -2641,13 +2661,13 @@
                   "key": "subscribed_after",
                   "value": "2024-01-01T00:00:00",
                   "disabled": true,
-                  "description": "ISO 8601 datetime \u2014 subscriptions after this date."
+                  "description": "ISO 8601 datetime — subscriptions after this date."
                 },
                 {
                   "key": "subscribed_before",
                   "value": "2099-12-31T23:59:59",
                   "disabled": true,
-                  "description": "ISO 8601 datetime \u2014 subscriptions before this date."
+                  "description": "ISO 8601 datetime — subscriptions before this date."
                 },
                 {
                   "key": "skip",
@@ -2659,7 +2679,7 @@
                   "key": "limit",
                   "value": "50",
                   "disabled": true,
-                  "description": "Max records per page (1\u2013200)."
+                  "description": "Max records per page (1–200)."
                 }
               ]
             },
@@ -2776,7 +2796,7 @@
     },
     {
       "name": "Settings (Dynamic Hierarchy)",
-      "description": "N-level dynamic settings tree. Each call is one level deep.\n\nFlow:\n  1. GET /settings              \u2192 root cards (Services, Applications, ...)\n  2. GET /settings?parent=services  \u2192 sub-cards (APIs, Databases, ...)\n  3. GET /settings?parent=databases \u2192 leaf nodes (PostgreSQL, MySQL, ...)\n  4. Leaf node nav_url \u2192 navigate to config page\n\nAdmins can create/update/delete nodes and set org/user overrides.\nABAC policies can be attached to nodes to restrict visibility.",
+      "description": "N-level dynamic settings tree. Each call is one level deep.\n\nFlow:\n  1. GET /settings              → root cards (Services, Applications, ...)\n  2. GET /settings?parent=services  → sub-cards (APIs, Databases, ...)\n  3. GET /settings?parent=databases → leaf nodes (PostgreSQL, MySQL, ...)\n  4. Leaf node nav_url → navigate to config page\n\nAdmins can create/update/delete nodes and set org/user overrides.\nABAC policies can be attached to nodes to restrict visibility.",
       "item": [
         {
           "name": "1. List Root Settings Cards",
@@ -3417,7 +3437,7 @@
     },
     {
       "name": "Resource Registry",
-      "description": "Resource Registry \u2014 the catalog of all platform resources and their valid operations.\n\nWorkflow for creating policies:\n  1. POST /resources/sync          (admin, run once after deploy)\n  2. GET  /resources               \u2192 pick a group + resource from dropdown\n  3. GET  /resources/{key}/operations \u2192 auto-populate operations checkboxes\n  4. POST /policies                \u2192 create policy with validated resource + ops",
+      "description": "Resource Registry — the catalog of all platform resources and their valid operations.\n\nWorkflow for creating policies:\n  1. POST /resources/sync          (admin, run once after deploy)\n  2. GET  /resources               → pick a group + resource from dropdown\n  3. GET  /resources/{key}/operations → auto-populate operations checkboxes\n  4. POST /policies                → create policy with validated resource + ops",
       "item": [
         {
           "name": "1. Sync Registry (admin, run after deploy)",
@@ -3606,7 +3626,7 @@
           ]
         },
         {
-          "name": "7. Get Operations for invalid key \u2192 404",
+          "name": "7. Get Operations for invalid key → 404",
           "request": {
             "method": "GET",
             "header": [],
@@ -3678,7 +3698,7 @@
           ]
         },
         {
-          "name": "9. Create Policy with INVALID resource \u2192 422",
+          "name": "9. Create Policy with INVALID resource → 422",
           "request": {
             "method": "POST",
             "header": [
@@ -3720,7 +3740,7 @@
           ]
         },
         {
-          "name": "10. Create Policy with INVALID operations \u2192 422",
+          "name": "10. Create Policy with INVALID operations → 422",
           "request": {
             "method": "POST",
             "header": [
@@ -3765,7 +3785,7 @@
     },
     {
       "name": "Navigation",
-      "description": "Dynamic main left navigation \u2014 ABAC + org/user overrides.\n\n- GET /nav \u2014 resolved tree (Home first, policy-filtered)\n- Admin CRUD \u2014 create/update/soft-delete nodes\n- Org/user overrides \u2014 enable/disable per org or per user\n- Policies \u2014 attach ABAC policies to restrict visibility",
+      "description": "Dynamic main left navigation — ABAC + org/user overrides.\n\n- GET /nav — resolved tree (Home first, policy-filtered)\n- Admin CRUD — create/update/soft-delete nodes\n- Org/user overrides — enable/disable per org or per user\n- Policies — attach ABAC policies to restrict visibility",
       "item": [
         {
           "name": "1. Get Nav Tree (resolved for user)",
@@ -4354,7 +4374,7 @@
                   "key": "limit",
                   "value": "50",
                   "disabled": true,
-                  "description": "Max records per page (1\u2013200)."
+                  "description": "Max records per page (1–200)."
                 }
               ]
             },
@@ -4526,7 +4546,7 @@
                   "key": "limit",
                   "value": "50",
                   "disabled": true,
-                  "description": "Max records per page (1\u2013200)."
+                  "description": "Max records per page (1–200)."
                 }
               ]
             },
@@ -4546,7 +4566,7 @@
           ]
         },
         {
-          "name": "Get Lookup by Slug \u2014 domain_type",
+          "name": "Get Lookup by Slug — domain_type",
           "request": {
             "method": "GET",
             "header": [
@@ -4580,7 +4600,7 @@
           ]
         },
         {
-          "name": "Get Lookup by Slug \u2014 metric_type",
+          "name": "Get Lookup by Slug — metric_type",
           "request": {
             "method": "GET",
             "header": [
@@ -4602,7 +4622,7 @@
           }
         },
         {
-          "name": "Get Lookup by Slug \u2014 metric_granularity",
+          "name": "Get Lookup by Slug — metric_granularity",
           "request": {
             "method": "GET",
             "header": [
@@ -4624,7 +4644,7 @@
           }
         },
         {
-          "name": "Get Lookup by Slug \u2014 measurement_unit",
+          "name": "Get Lookup by Slug — measurement_unit",
           "request": {
             "method": "GET",
             "header": [
@@ -4646,7 +4666,7 @@
           }
         },
         {
-          "name": "Get Lookup by Slug \u2014 metric_language",
+          "name": "Get Lookup by Slug — metric_language",
           "request": {
             "method": "GET",
             "header": [
@@ -4844,7 +4864,7 @@
                 }
               ]
             },
-            "description": "NEW endpoint \u2014 list values for a lookup category with search and is_active filters."
+            "description": "NEW endpoint — list values for a lookup category with search and is_active filters."
           },
           "response": []
         }
@@ -4919,7 +4939,7 @@
                   "key": "limit",
                   "value": "50",
                   "disabled": true,
-                  "description": "Max records per page (1\u2013200)."
+                  "description": "Max records per page (1–200)."
                 }
               ]
             },
@@ -4939,7 +4959,7 @@
           ]
         },
         {
-          "name": "List \u2014 Filter by type",
+          "name": "List — Filter by type",
           "request": {
             "method": "GET",
             "header": [
@@ -5238,7 +5258,7 @@
                   "key": "limit",
                   "value": "50",
                   "disabled": true,
-                  "description": "Max records per page (1\u2013200)."
+                  "description": "Max records per page (1–200)."
                 }
               ]
             },
@@ -5257,7 +5277,7 @@
           ]
         },
         {
-          "name": "List \u2014 Filter by status=draft",
+          "name": "List — Filter by status=draft",
           "request": {
             "method": "GET",
             "header": [
@@ -5284,7 +5304,7 @@
           }
         },
         {
-          "name": "List \u2014 Filter by domain",
+          "name": "List — Filter by domain",
           "request": {
             "method": "GET",
             "header": [
@@ -5382,7 +5402,7 @@
           }
         },
         {
-          "name": "Update Data Product \u2014 Publish",
+          "name": "Update Data Product — Publish",
           "request": {
             "method": "PUT",
             "header": [
@@ -5691,7 +5711,7 @@
                   "key": "limit",
                   "value": "50",
                   "disabled": true,
-                  "description": "Max records per page (1\u2013200)."
+                  "description": "Max records per page (1–200)."
                 }
               ]
             },
@@ -6127,7 +6147,7 @@
                   "key": "limit",
                   "value": "50",
                   "disabled": true,
-                  "description": "Max records per page (1\u2013200)."
+                  "description": "Max records per page (1–200)."
                 }
               ]
             },
@@ -6311,7 +6331,7 @@
                   "key": "limit",
                   "value": "50",
                   "disabled": true,
-                  "description": "Max records per page (1\u2013200)."
+                  "description": "Max records per page (1–200)."
                 }
               ]
             },
@@ -6330,7 +6350,7 @@
           ]
         },
         {
-          "name": "Create Tag \u2014 Personal",
+          "name": "Create Tag — Personal",
           "request": {
             "method": "POST",
             "header": [
@@ -6378,7 +6398,7 @@
           ]
         },
         {
-          "name": "Create Tag \u2014 Special Category",
+          "name": "Create Tag — Special Category",
           "request": {
             "method": "POST",
             "header": [
@@ -6629,7 +6649,7 @@
                   "key": "limit",
                   "value": "50",
                   "disabled": true,
-                  "description": "Max records per page (1\u2013200)."
+                  "description": "Max records per page (1–200)."
                 }
               ]
             },
@@ -6648,7 +6668,7 @@
           ]
         },
         {
-          "name": "List \u2014 Filter by metric_type=sum",
+          "name": "List — Filter by metric_type=sum",
           "request": {
             "method": "GET",
             "header": [
@@ -6675,7 +6695,7 @@
           }
         },
         {
-          "name": "List \u2014 Search by name",
+          "name": "List — Search by name",
           "request": {
             "method": "GET",
             "header": [
@@ -6915,7 +6935,7 @@
                   "key": "limit",
                   "value": "50",
                   "disabled": true,
-                  "description": "Max records per page (1\u2013200)."
+                  "description": "Max records per page (1–200)."
                 }
               ]
             },
@@ -6934,7 +6954,7 @@
           ]
         },
         {
-          "name": "List \u2014 Filter open requests for a term",
+          "name": "List — Filter open requests for a term",
           "request": {
             "method": "GET",
             "header": [
@@ -7247,7 +7267,7 @@
           ]
         },
         {
-          "name": "Filter by entity_type \u2014 catalog_domain",
+          "name": "Filter by entity_type — catalog_domain",
           "request": {
             "method": "GET",
             "header": [
@@ -7278,7 +7298,7 @@
           }
         },
         {
-          "name": "Filter by entity \u2014 glossary term",
+          "name": "Filter by entity — glossary term",
           "request": {
             "method": "GET",
             "header": [
@@ -7495,7 +7515,7 @@
           }
         },
         {
-          "name": "Update Storage Config \u2014 Switch to new bucket",
+          "name": "Update Storage Config — Switch to new bucket",
           "request": {
             "method": "PUT",
             "header": [
@@ -8048,7 +8068,7 @@
           ]
         },
         {
-          "name": "Health Check \u2014 Ping All Services",
+          "name": "Health Check — Ping All Services",
           "request": {
             "method": "GET",
             "header": [
@@ -8116,7 +8136,7 @@
           ]
         },
         {
-          "name": "Spark UI \u2014 Specific Application",
+          "name": "Spark UI — Specific Application",
           "request": {
             "method": "GET",
             "header": [
@@ -8144,7 +8164,7 @@
           }
         },
         {
-          "name": "Spark UI \u2014 Specific Job",
+          "name": "Spark UI — Specific Job",
           "request": {
             "method": "GET",
             "header": [
@@ -8195,7 +8215,7 @@
           }
         },
         {
-          "name": "Spark History \u2014 by App ID",
+          "name": "Spark History — by App ID",
           "request": {
             "method": "GET",
             "header": [
@@ -8246,7 +8266,7 @@
           }
         },
         {
-          "name": "Trino UI \u2014 by Query ID",
+          "name": "Trino UI — by Query ID",
           "request": {
             "method": "GET",
             "header": [
@@ -8296,7 +8316,7 @@
           }
         },
         {
-          "name": "Airflow \u2014 by DAG ID",
+          "name": "Airflow — by DAG ID",
           "request": {
             "method": "GET",
             "header": [
@@ -8324,7 +8344,7 @@
           }
         },
         {
-          "name": "Airflow \u2014 by DAG + Run",
+          "name": "Airflow — by DAG + Run",
           "request": {
             "method": "GET",
             "header": [
@@ -8378,7 +8398,7 @@
           }
         },
         {
-          "name": "RabbitMQ \u2014 by Queue",
+          "name": "RabbitMQ — by Queue",
           "request": {
             "method": "GET",
             "header": [
@@ -8428,7 +8448,7 @@
           }
         },
         {
-          "name": "Celery Flower \u2014 by Task ID",
+          "name": "Celery Flower — by Task ID",
           "request": {
             "method": "GET",
             "header": [
@@ -8503,7 +8523,7 @@
       "description": "Returns redirect_url for each service. Frontend opens url in new tab. Also has /health to ping all."
     },
     {
-      "name": "Admin \u2014 User Management",
+      "name": "Admin — User Management",
       "item": [
         {
           "id": "8ddfdefa-989d-42cf-a469-8b94b6ee9d64",
@@ -8584,7 +8604,7 @@
                   "key": "limit",
                   "value": "50",
                   "disabled": true,
-                  "description": "Max records per page (1\u2013200)."
+                  "description": "Max records per page (1–200)."
                 }
               ]
             },
@@ -8594,7 +8614,7 @@
         },
         {
           "id": "ed03d691-c07e-4b27-baeb-6fd0cbddaae0",
-          "name": "List Users \u2014 Search",
+          "name": "List Users — Search",
           "request": {
             "method": "GET",
             "header": [
@@ -8631,7 +8651,7 @@
         },
         {
           "id": "5d8a475a-a7e8-468e-a7ec-dd14c5abc733",
-          "name": "List Users \u2014 Admins Only",
+          "name": "List Users — Admins Only",
           "request": {
             "method": "GET",
             "header": [
@@ -8682,7 +8702,7 @@
                 "users"
               ]
             },
-            "description": "Create a user in the active org.\n\nusername is auto-derived from email.\npassword + confirm_password must match and meet strength requirements (min 8 chars, upper+lower+digit).\nteam_ids, role_ids, domain_ids \u2014 UUIDs of org-scoped entities to assign at creation.",
+            "description": "Create a user in the active org.\n\nusername is auto-derived from email.\npassword + confirm_password must match and meet strength requirements (min 8 chars, upper+lower+digit).\nteam_ids, role_ids, domain_ids — UUIDs of org-scoped entities to assign at creation.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"john.doe@acme.com\",\n  \"display_name\": \"John Doe\",\n  \"description\": \"Senior data engineer\",\n  \"password\": \"Secure@1234\",\n  \"confirm_password\": \"Secure@1234\",\n  \"is_admin\": false,\n  \"team_ids\": [],\n  \"role_ids\": [],\n  \"domain_ids\": []\n}",
@@ -8777,7 +8797,7 @@
                 "{{admin_created_user_id}}"
               ]
             },
-            "description": "Update user profile and reassign teams/roles/domains.\nteam_ids/role_ids/domain_ids are full-replace \u2014 pass empty list [] to remove all.",
+            "description": "Update user profile and reassign teams/roles/domains.\nteam_ids/role_ids/domain_ids are full-replace — pass empty list [] to remove all.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"display_name\": \"John D. Updated\",\n  \"description\": \"Updated description\",\n  \"is_admin\": false,\n  \"team_ids\": [\n    \"{{team_id}}\"\n  ],\n  \"role_ids\": [],\n  \"domain_ids\": []\n}",
@@ -8856,7 +8876,7 @@
       "description": "Org admin only. Creates users without self-registration. Password can be generated or set."
     },
     {
-      "name": "ABAC \u2014 Effective Permissions",
+      "name": "ABAC — Effective Permissions",
       "item": [
         {
           "name": "Get My Effective Permissions",
@@ -8899,6 +8919,900 @@
         }
       ],
       "description": "Frontend calls this once after login to determine which resources/operations are accessible."
+    },
+    {
+      "id": "6fcf400e-e3f3-47fb-9e53-b5dae8db5398",
+      "name": "Datasets",
+      "description": "Raw data collections (DB schemas, S3 buckets, API sources, files). Hierarchy: CatalogDomain → Dataset → DataAsset",
+      "item": [
+        {
+          "id": "55dbabf5-ec00-495e-a4f2-251beec4b777",
+          "name": "List Datasets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/datasets",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "datasets"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Search by name or description."
+                },
+                {
+                  "key": "domain_id",
+                  "value": "{{catalog_domain_id}}",
+                  "disabled": true,
+                  "description": "Filter by catalog domain."
+                },
+                {
+                  "key": "source_type",
+                  "value": "database",
+                  "disabled": true,
+                  "description": "database | schema | s3_bucket | api | file"
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "created_by",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "owner_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Datasets owned by this user."
+                },
+                {
+                  "key": "expert_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Datasets where this user is an expert."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1–200)."
+                }
+              ]
+            },
+            "description": "List datasets with comprehensive filters."
+          },
+          "response": []
+        },
+        {
+          "id": "89938995-7f1f-4fb8-807e-9b42b51b9da8",
+          "name": "Create Dataset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/datasets",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "datasets"
+              ]
+            },
+            "description": "Create a new dataset.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"sales_db\",\n  \"display_name\": \"Sales Database\",\n  \"description\": \"Primary sales transactional database\",\n  \"domain_id\": \"{{catalog_domain_id}}\",\n  \"source_type\": \"database\",\n  \"source_url\": \"postgresql://localhost:5432/sales\",\n  \"tags\": [\n    \"finance\",\n    \"transactional\"\n  ],\n  \"owner_ids\": [],\n  \"expert_ids\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "247b0d24-4cb7-4ed6-a18e-efb25f4b1a2a",
+          "name": "Get Dataset",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/datasets/{{dataset_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "datasets",
+                "{{dataset_id}}"
+              ]
+            },
+            "description": "Get dataset by ID."
+          },
+          "response": []
+        },
+        {
+          "id": "e9695884-c9d0-48b1-969f-955d5bed1d9d",
+          "name": "Update Dataset",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/datasets/{{dataset_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "datasets",
+                "{{dataset_id}}"
+              ]
+            },
+            "description": "Update dataset.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"Sales Database (Updated)\",\n  \"description\": \"Updated description\",\n  \"is_active\": true,\n  \"tags\": [\n    \"finance\",\n    \"transactional\",\n    \"updated\"\n  ],\n  \"owner_ids\": [],\n  \"expert_ids\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "4d5857b9-bd2f-4072-a491-4f0e673ea5f3",
+          "name": "Delete Dataset",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/datasets/{{dataset_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "datasets",
+                "{{dataset_id}}"
+              ]
+            },
+            "description": "Soft-delete dataset (sets is_active=false)."
+          },
+          "response": []
+        },
+        {
+          "id": "f85b4191-66e1-4e23-a4ad-a1f34da76032",
+          "name": "Add Dataset Owner",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/datasets/{{dataset_id}}/owners/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "datasets",
+                "{{dataset_id}}",
+                "owners",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Assign a user as owner of a dataset."
+          },
+          "response": []
+        },
+        {
+          "id": "157387d5-96e4-46ad-b964-d9690083a183",
+          "name": "Remove Dataset Owner",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/datasets/{{dataset_id}}/owners/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "datasets",
+                "{{dataset_id}}",
+                "owners",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Remove a user as owner of a dataset."
+          },
+          "response": []
+        },
+        {
+          "id": "12a4fda7-1366-42df-944a-8825bbf735ca",
+          "name": "Add Dataset Expert",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/datasets/{{dataset_id}}/experts/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "datasets",
+                "{{dataset_id}}",
+                "experts",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Assign a user as expert/SME of a dataset."
+          },
+          "response": []
+        },
+        {
+          "id": "6526e55e-5a84-467b-8de9-c17a969b1bff",
+          "name": "Remove Dataset Expert",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/datasets/{{dataset_id}}/experts/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "datasets",
+                "{{dataset_id}}",
+                "experts",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Remove a user as expert of a dataset."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "10f614ab-b618-49fb-a609-480201f3cf09",
+      "name": "Data Assets",
+      "description": "Cataloged data assets — tables, views, files, API endpoints with metadata, ownership, lineage, and classification tags. Hierarchy: Dataset → DataAsset → DataAssetColumn",
+      "item": [
+        {
+          "id": "a4e2c7bd-1639-43c8-805f-67d201bff7a1",
+          "name": "List Data Assets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Search by name, description, or fully_qualified_name."
+                },
+                {
+                  "key": "dataset_id",
+                  "value": "{{dataset_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "data_product_id",
+                  "value": "{{data_product_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "asset_type",
+                  "value": "table",
+                  "disabled": true,
+                  "description": "table | view | materialized_view | file | api_endpoint | stream"
+                },
+                {
+                  "key": "sensitivity",
+                  "value": "internal",
+                  "disabled": true,
+                  "description": "public | internal | confidential | restricted"
+                },
+                {
+                  "key": "is_pii",
+                  "value": "false",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "created_by",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "owner_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Assets owned by this user."
+                },
+                {
+                  "key": "expert_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Assets where this user is an expert."
+                },
+                {
+                  "key": "tag_id",
+                  "value": "{{tag_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Assets tagged with this classification tag."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1–200)."
+                }
+              ]
+            },
+            "description": "List data assets with comprehensive filters including relational joins."
+          },
+          "response": []
+        },
+        {
+          "id": "31465b91-2bd8-489d-b7ba-fa88e9e0fdd2",
+          "name": "Create Data Asset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets"
+              ]
+            },
+            "description": "Create a new data asset with optional initial column schema.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dataset_id\": \"{{dataset_id}}\",\n  \"name\": \"sales_transactions\",\n  \"display_name\": \"Sales Transactions\",\n  \"description\": \"Main sales transactions table\",\n  \"asset_type\": \"table\",\n  \"fully_qualified_name\": \"sales_db.public.sales_transactions\",\n  \"sensitivity\": \"internal\",\n  \"is_pii\": false,\n  \"owner_ids\": [],\n  \"expert_ids\": [],\n  \"tag_ids\": [],\n  \"columns\": [\n    {\n      \"name\": \"id\",\n      \"data_type\": \"uuid\",\n      \"ordinal_position\": 0,\n      \"is_nullable\": false,\n      \"is_primary_key\": true,\n      \"is_foreign_key\": false,\n      \"is_pii\": false\n    },\n    {\n      \"name\": \"amount\",\n      \"data_type\": \"decimal\",\n      \"ordinal_position\": 1,\n      \"is_nullable\": false,\n      \"is_primary_key\": false,\n      \"is_foreign_key\": false,\n      \"is_pii\": false\n    },\n    {\n      \"name\": \"customer_id\",\n      \"data_type\": \"uuid\",\n      \"ordinal_position\": 2,\n      \"is_nullable\": false,\n      \"is_primary_key\": false,\n      \"is_foreign_key\": true,\n      \"is_pii\": false\n    },\n    {\n      \"name\": \"created_at\",\n      \"data_type\": \"timestamptz\",\n      \"ordinal_position\": 3,\n      \"is_nullable\": false,\n      \"is_primary_key\": false,\n      \"is_foreign_key\": false,\n      \"is_pii\": false\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "f02f52a9-63c3-40a4-b4bf-04e426b6c349",
+          "name": "Get Data Asset",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}"
+              ]
+            },
+            "description": "Get data asset by ID (includes columns, owners, experts, tags)."
+          },
+          "response": []
+        },
+        {
+          "id": "159cec55-4920-4753-9c11-de34b14531a4",
+          "name": "Update Data Asset",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}"
+              ]
+            },
+            "description": "Update data asset metadata.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"Sales Transactions (Updated)\",\n  \"description\": \"Updated description\",\n  \"sensitivity\": \"confidential\",\n  \"is_pii\": false,\n  \"row_count\": 1500000,\n  \"size_bytes\": 52428800,\n  \"owner_ids\": [],\n  \"expert_ids\": [],\n  \"tag_ids\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "5cd281f0-e544-4934-b080-0e6e63080000",
+          "name": "Delete Data Asset",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}"
+              ]
+            },
+            "description": "Soft-delete data asset (sets is_active=false)."
+          },
+          "response": []
+        },
+        {
+          "id": "b69a5216-60a7-475c-b34b-42acdb967895",
+          "name": "Add Asset Tag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/tags/{{tag_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "tags",
+                "{{tag_id}}"
+              ]
+            },
+            "description": "Assign a classification tag to a data asset."
+          },
+          "response": []
+        },
+        {
+          "id": "fc41801b-eb58-4c59-87ed-ea6b44ae6dab",
+          "name": "Remove Asset Tag",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/tags/{{tag_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "tags",
+                "{{tag_id}}"
+              ]
+            },
+            "description": "Remove a classification tag from a data asset."
+          },
+          "response": []
+        },
+        {
+          "id": "0023f3d1-be73-45bd-8e96-8d287a1e74d1",
+          "name": "Add Asset Owner",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/owners/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "owners",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Assign a user as owner of a data asset."
+          },
+          "response": []
+        },
+        {
+          "id": "c5156e88-ea97-49eb-94b1-e090a9da165a",
+          "name": "Remove Asset Owner",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/owners/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "owners",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Remove a user as owner of a data asset."
+          },
+          "response": []
+        },
+        {
+          "id": "6f356f70-a247-461d-ad59-01e8783e21f9",
+          "name": "Add Asset Expert",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/experts/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "experts",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Assign a user as expert/SME of a data asset."
+          },
+          "response": []
+        },
+        {
+          "id": "30a7b2dd-6c3c-4898-a724-49960009cf10",
+          "name": "Remove Asset Expert",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/experts/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "experts",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Remove a user as expert of a data asset."
+          },
+          "response": []
+        },
+        {
+          "id": "d4ba73a2-aaed-42d8-8dfa-d099489fe823",
+          "name": "List Columns",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/columns",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "columns"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "data_type",
+                  "value": "varchar",
+                  "disabled": true,
+                  "description": "bigint | varchar | timestamp | boolean | decimal | uuid | json"
+                },
+                {
+                  "key": "is_pii",
+                  "value": "false",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "is_primary_key",
+                  "value": "false",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "is_foreign_key",
+                  "value": "false",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "List all columns for a data asset."
+          },
+          "response": []
+        },
+        {
+          "id": "28b5ee48-167e-4ca5-89ad-af022de712c3",
+          "name": "Add Column",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/columns",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "columns"
+              ]
+            },
+            "description": "Add a single column to a data asset.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"email\",\n  \"display_name\": \"Customer Email\",\n  \"description\": \"Customer email address \\u2014 PII\",\n  \"data_type\": \"varchar\",\n  \"ordinal_position\": 5,\n  \"is_nullable\": true,\n  \"is_primary_key\": false,\n  \"is_foreign_key\": false,\n  \"is_pii\": true,\n  \"sensitivity\": \"confidential\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "4e0b4fbf-315e-4619-80c8-57d289702f0f",
+          "name": "Update Column",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/columns/{{column_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "columns",
+                "{{column_id}}"
+              ]
+            },
+            "description": "Update column metadata.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated column description\",\n  \"is_pii\": true,\n  \"sensitivity\": \"restricted\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "31369668-c8c2-4b53-9f58-85207e08cdca",
+          "name": "Delete Column",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/columns/{{column_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "columns",
+                "{{column_id}}"
+              ]
+            },
+            "description": "Delete a column from a data asset."
+          },
+          "response": []
+        },
+        {
+          "id": "5110b4c9-d619-4900-8193-a37ccac4974e",
+          "name": "Bulk Replace Columns",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/columns/bulk",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "columns",
+                "bulk"
+              ]
+            },
+            "description": "Full replace of all columns for a data asset (schema sync from source).",
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"name\": \"id\",\n    \"data_type\": \"uuid\",\n    \"ordinal_position\": 0,\n    \"is_nullable\": false,\n    \"is_primary_key\": true,\n    \"is_foreign_key\": false,\n    \"is_pii\": false\n  },\n  {\n    \"name\": \"name\",\n    \"data_type\": \"varchar\",\n    \"ordinal_position\": 1,\n    \"is_nullable\": true,\n    \"is_primary_key\": false,\n    \"is_foreign_key\": false,\n    \"is_pii\": false\n  },\n  {\n    \"name\": \"email\",\n    \"data_type\": \"varchar\",\n    \"ordinal_position\": 2,\n    \"is_nullable\": true,\n    \"is_primary_key\": false,\n    \"is_foreign_key\": false,\n    \"is_pii\": true,\n    \"sensitivity\": \"confidential\"\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }

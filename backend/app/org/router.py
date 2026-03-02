@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +32,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db import get_session
 from app.auth.models import (
-    AuthConfig, Domain, Organization, Policy, Role,
+    AuthConfig, Domain, Organization, OrgProfilerConfig, Policy, Role,
     Subscription, Team, User, user_organizations,
     user_teams,
 )
@@ -716,6 +717,77 @@ async def remove_policy_from_org(
         org_policies.delete().where(org_policies.c.org_id == org_id, org_policies.c.policy_id == policy_id)
     )
     await db.commit()
+
+
+# ===========================================================================
+# ORG PROFILER CONFIG
+# ===========================================================================
+
+class ProfilerConfigEntry(BaseModel):
+    datatype: str = Field(..., description="e.g. bigint, varchar, timestamp, boolean")
+    metric_types: List[str] = Field(..., description="e.g. ['null_count', 'distinct_count', 'min', 'max', 'mean']")
+
+    model_config = {"from_attributes": True}
+
+
+class ProfilerConfigResponse(BaseModel):
+    id: uuid.UUID
+    org_id: uuid.UUID
+    datatype: str
+    metric_types: List[str]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ProfilerConfigBulkUpdate(BaseModel):
+    entries: List[ProfilerConfigEntry] = Field(..., description="Full replace of all profiler config entries for the org")
+
+
+@router.get("/org/profiler-config", response_model=List[ProfilerConfigResponse], tags=["Organization"])
+async def get_profiler_config(
+    user: User = Depends(require_org_admin),
+    db: AsyncSession = Depends(get_session),
+):
+    """Get org-level profiler config (which metrics apply to which datatypes)."""
+    active_org = get_active_org_id(user)
+    result = await db.execute(
+        select(OrgProfilerConfig)
+        .where(OrgProfilerConfig.org_id == active_org)
+        .order_by(OrgProfilerConfig.datatype)
+    )
+    return result.scalars().all()
+
+
+@router.put("/org/profiler-config", response_model=List[ProfilerConfigResponse], tags=["Organization"])
+async def update_profiler_config(
+    body: ProfilerConfigBulkUpdate,
+    user: User = Depends(require_org_admin),
+    db: AsyncSession = Depends(get_session),
+):
+    """Full replace of profiler config for the org — deletes existing, inserts new."""
+    active_org = get_active_org_id(user)
+    await db.execute(
+        OrgProfilerConfig.__table__.delete().where(OrgProfilerConfig.org_id == active_org)
+    )
+    new_entries = [
+        OrgProfilerConfig(
+            id=uuid.uuid4(),
+            org_id=active_org,
+            datatype=entry.datatype,
+            metric_types=entry.metric_types,
+        )
+        for entry in body.entries
+    ]
+    db.add_all(new_entries)
+    await db.commit()
+    result = await db.execute(
+        select(OrgProfilerConfig)
+        .where(OrgProfilerConfig.org_id == active_org)
+        .order_by(OrgProfilerConfig.datatype)
+    )
+    return result.scalars().all()
 
 
 # ===========================================================================

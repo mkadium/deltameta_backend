@@ -471,3 +471,36 @@ async def deactivate_user(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot deactivate yourself")
     user.is_active = False
     await db.commit()
+
+
+@router.post("/users/{user_id}/unlock", response_model=PasswordResetOut)
+async def unlock_user(
+    user_id: uuid.UUID,
+    admin: User = Depends(require_org_admin),
+    db: AsyncSession = Depends(get_session),
+):
+    """Clear account lockout — resets failed_attempts and locked_until."""
+    active_org = get_active_org_id(admin)
+    user = await db.get(User, user_id)
+    if not user or user.org_id != active_org:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user.failed_attempts = 0
+    user.locked_until = None
+    await db.commit()
+    return PasswordResetOut(user_id=user.id, message="Account unlocked successfully.")
+
+
+@router.patch("/users/{user_id}/verify", response_model=PasswordResetOut)
+async def verify_user(
+    user_id: uuid.UUID,
+    admin: User = Depends(require_org_admin),
+    db: AsyncSession = Depends(get_session),
+):
+    """Manually mark user email as verified."""
+    active_org = get_active_org_id(admin)
+    user = await db.get(User, user_id)
+    if not user or user.org_id != active_org:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user.is_verified = True
+    await db.commit()
+    return PasswordResetOut(user_id=user.id, message="User verified successfully.")

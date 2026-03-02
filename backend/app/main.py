@@ -76,6 +76,8 @@ try:
     from app.service_endpoints.router import router as service_endpoints_router
     from app.monitor.router import router as monitor_router
     from app.admin.router import router as admin_router
+    from app.datasets.router import router as datasets_router
+    from app.data_assets.router import router as data_assets_router
 except Exception:
     from .auth.router import router as auth_router
     from .teams.router import router as teams_router
@@ -99,6 +101,8 @@ except Exception:
     from .service_endpoints.router import router as service_endpoints_router
     from .monitor.router import router as monitor_router
     from .admin.router import router as admin_router
+    from .datasets.router import router as datasets_router
+    from .data_assets.router import router as data_assets_router
 
 app.include_router(auth_router)
 app.include_router(teams_router)
@@ -122,6 +126,8 @@ app.include_router(storage_config_router)
 app.include_router(service_endpoints_router)
 app.include_router(monitor_router)
 app.include_router(admin_router)
+app.include_router(datasets_router)
+app.include_router(data_assets_router)
 
 # Initialize OpenTelemetry tracing (optional)
 if setup_tracing:
