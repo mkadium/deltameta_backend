@@ -3,6 +3,8 @@ FastAPI dependencies for authentication and authorization.
 """
 from __future__ import annotations
 
+import uuid as _uuid
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
@@ -47,9 +49,62 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Attach the active org_id from JWT to user (may differ from user.org_id)
-    user._active_org_id = payload.get("org_id") or str(user.default_org_id or user.org_id)
+    # Attach the active org_id from JWT — key is "org_id" (fixed from legacy "org")
+    token_org = payload.get("org_id") or payload.get("org")  # fallback handles old tokens
+    user._active_org_id = token_org or str(user.default_org_id or user.org_id)
     return user
+
+
+def get_active_org_id(user: User) -> _uuid.UUID:
+    """
+    Returns the org the user is currently acting in as a UUID.
+
+    Priority:
+      1. org_id embedded in the JWT (_active_org_id set by get_current_user)
+      2. user.default_org_id (DB column — last switched org)
+      3. user.org_id (primary/registration org — final fallback)
+
+    Use this in routers when you need the active org for read filtering.
+    For record creation always require explicit org_id in the request body.
+    """
+    raw = getattr(user, "_active_org_id", None)
+    if raw:
+        return _uuid.UUID(str(raw))
+    if user.default_org_id:
+        return user.default_org_id
+    return user.org_id
+
+
+async def validate_org_membership(
+    user: User,
+    org_id: _uuid.UUID,
+    db: AsyncSession,
+    require_admin: bool = False,
+) -> None:
+    """
+    Raise 403 if the user is not an active member of the given org.
+    If require_admin=True, also require is_org_admin=True.
+    Global admins bypass all checks.
+    """
+    if user.is_global_admin:
+        return
+
+    filters = [
+        user_organizations.c.user_id == user.id,
+        user_organizations.c.org_id == org_id,
+        user_organizations.c.is_active == True,
+    ]
+    if require_admin:
+        filters.append(user_organizations.c.is_org_admin == True)
+
+    result = await db.execute(select(user_organizations).where(*filters))
+    if not result.mappings().first():
+        detail = (
+            "Organization admin privileges required."
+            if require_admin
+            else "You are not a member of this organization."
+        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
 
 
 async def require_active_user(
@@ -76,7 +131,7 @@ async def require_org_admin(
     if user.is_global_admin:
         return user
 
-    active_org_id = getattr(user, "_active_org_id", None) or str(user.default_org_id or user.org_id)
+    active_org_id = get_active_org_id(user)
 
     result = await db.execute(
         select(user_organizations).where(

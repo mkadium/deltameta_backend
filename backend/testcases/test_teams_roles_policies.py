@@ -104,6 +104,11 @@ async def _register_and_login(client: AsyncClient, suffix: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
+async def _get_org_id(client: AsyncClient, headers: dict) -> str:
+    me = await client.get("/auth/me", headers=headers)
+    return me.json()["org_id"]
+
+
 # ===========================================================================
 # DOMAIN TESTS
 # ===========================================================================
@@ -172,7 +177,9 @@ class TestDomains:
 class TestTeams:
     async def test_create_team_no_parent(self, client: AsyncClient):
         headers = await _register_and_login(client, f"team1_{uuid.uuid4().hex[:6]}")
+        org_id = await _get_org_id(client, headers)
         resp = await client.post("/teams", headers=headers, json={
+            "org_id": org_id,
             "name": "Platform Team",
             "team_type": "group",
             "public_team_view": True,
@@ -184,13 +191,16 @@ class TestTeams:
 
     async def test_create_team_with_parent(self, client: AsyncClient):
         headers = await _register_and_login(client, f"team2_{uuid.uuid4().hex[:6]}")
+        org_id = await _get_org_id(client, headers)
         bu_resp = await client.post("/teams", headers=headers, json={
+            "org_id": org_id,
             "name": "Technology BU",
             "team_type": "business_unit",
         })
         bu_id = bu_resp.json()["id"]
 
         div_resp = await client.post("/teams", headers=headers, json={
+            "org_id": org_id,
             "name": "Engineering Division",
             "team_type": "division",
             "parent_team_id": bu_id,
@@ -200,13 +210,16 @@ class TestTeams:
 
     async def test_team_hierarchy_endpoint(self, client: AsyncClient):
         headers = await _register_and_login(client, f"teamh_{uuid.uuid4().hex[:6]}")
+        org_id = await _get_org_id(client, headers)
         bu_resp = await client.post("/teams", headers=headers, json={
+            "org_id": org_id,
             "name": "Corp BU",
             "team_type": "business_unit",
         })
         bu_id = bu_resp.json()["id"]
 
         await client.post("/teams", headers=headers, json={
+            "org_id": org_id,
             "name": "Corp Div",
             "team_type": "division",
             "parent_team_id": bu_id,
@@ -220,8 +233,9 @@ class TestTeams:
 
     async def test_list_teams_filter_by_type(self, client: AsyncClient):
         headers = await _register_and_login(client, f"teamf_{uuid.uuid4().hex[:6]}")
-        await client.post("/teams", headers=headers, json={"name": "BU Alpha", "team_type": "business_unit"})
-        await client.post("/teams", headers=headers, json={"name": "Group Beta", "team_type": "group"})
+        org_id = await _get_org_id(client, headers)
+        await client.post("/teams", headers=headers, json={"org_id": org_id, "name": "BU Alpha", "team_type": "business_unit"})
+        await client.post("/teams", headers=headers, json={"org_id": org_id, "name": "Group Beta", "team_type": "group"})
 
         resp = await client.get("/teams?team_type=business_unit", headers=headers)
         assert resp.status_code == 200
@@ -231,10 +245,12 @@ class TestTeams:
     async def test_add_and_remove_member(self, client: AsyncClient):
         suffix = uuid.uuid4().hex[:6]
         admin_headers = await _register_and_login(client, f"adm_{suffix}")
+        org_id = await _get_org_id(client, admin_headers)
 
         # Create a second user (registers in same app state, but separate org)
         # Use admin user's own ID as member since we're single-org per registration
         team_resp = await client.post("/teams", headers=admin_headers, json={
+            "org_id": org_id,
             "name": f"Members Team {suffix}",
             "team_type": "group",
         })
@@ -260,7 +276,8 @@ class TestTeams:
 
     async def test_delete_team(self, client: AsyncClient):
         headers = await _register_and_login(client, f"teamdel_{uuid.uuid4().hex[:6]}")
-        create_resp = await client.post("/teams", headers=headers, json={"name": "To Delete", "team_type": "group"})
+        org_id = await _get_org_id(client, headers)
+        create_resp = await client.post("/teams", headers=headers, json={"org_id": org_id, "name": "To Delete", "team_type": "group"})
         team_id = create_resp.json()["id"]
         del_resp = await client.delete(f"/teams/{team_id}", headers=headers)
         assert del_resp.status_code == 200

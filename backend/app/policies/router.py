@@ -27,7 +27,7 @@ from app.auth.schemas import (
     PolicyResponse,
     PolicyUpdate,
 )
-from app.auth.dependencies import require_active_user, require_org_admin
+from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
 from app.resources.service import validate_resource_key, get_operations_for_key
 
 router = APIRouter(prefix="/policies", tags=["Policies"])
@@ -81,7 +81,7 @@ async def list_policies(
     current_user=Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
-    q = select(Policy).where(Policy.org_id == current_user.org_id)
+    q = select(Policy).where(Policy.org_id == get_active_org_id(current_user))
     if resource:
         q = q.where(Policy.resource.ilike(f"%{resource}%"))
     q = q.order_by(Policy.name).offset(skip).limit(limit)
@@ -99,14 +99,14 @@ async def create_policy(
     await _validate_resource_and_operations(body.resource, body.operations, session)
 
     existing = await session.execute(
-        select(Policy).where(Policy.org_id == current_user.org_id, Policy.name == body.name)
+        select(Policy).where(Policy.org_id == get_active_org_id(current_user), Policy.name == body.name)
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Policy name already exists in this organization")
 
     policy = Policy(
         id=uuid.uuid4(),
-        org_id=current_user.org_id,
+        org_id=get_active_org_id(current_user),
         name=body.name,
         description=body.description,
         rule_name=body.rule_name,
@@ -126,7 +126,7 @@ async def get_policy(
     current_user=Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
-    return await _get_policy_or_404(policy_id, current_user.org_id, session)
+    return await _get_policy_or_404(policy_id, get_active_org_id(current_user), session)
 
 
 @router.put("/{policy_id}", response_model=PolicyResponse, summary="Update a policy")
@@ -136,7 +136,7 @@ async def update_policy(
     current_user=Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    policy = await _get_policy_or_404(policy_id, current_user.org_id, session)
+    policy = await _get_policy_or_404(policy_id, get_active_org_id(current_user), session)
 
     # Validate resource/operations if being updated
     new_resource = body.resource if body.resource is not None else policy.resource
@@ -145,7 +145,7 @@ async def update_policy(
 
     if body.name is not None and body.name != policy.name:
         existing = await session.execute(
-            select(Policy).where(Policy.org_id == current_user.org_id, Policy.name == body.name)
+            select(Policy).where(Policy.org_id == get_active_org_id(current_user), Policy.name == body.name)
         )
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Policy name already exists")
@@ -174,7 +174,7 @@ async def delete_policy(
     current_user=Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    policy = await _get_policy_or_404(policy_id, current_user.org_id, session)
+    policy = await _get_policy_or_404(policy_id, get_active_org_id(current_user), session)
     await session.delete(policy)
     await session.commit()
     return MessageResponse(message=f"Policy '{policy.name}' deleted successfully")

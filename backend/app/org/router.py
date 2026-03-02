@@ -47,7 +47,7 @@ from app.auth.schemas import (
     UserResponse,
 )
 from app.auth.service import slugify
-from app.auth.dependencies import require_active_user, require_org_admin
+from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
 
 router = APIRouter(tags=["Organization"])
 
@@ -400,7 +400,7 @@ async def get_org_preferences(
     current_user=Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
-    active_org_id = current_user.default_org_id or current_user.org_id
+    active_org_id = get_active_org_id(current_user)
     org = await _get_org_or_404(active_org_id, session)
     return _org_to_preferences_response(org)
 
@@ -411,7 +411,7 @@ async def update_org_preferences(
     current_user=Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
-    active_org_id = current_user.default_org_id or current_user.org_id
+    active_org_id = get_active_org_id(current_user)
     await _assert_org_admin(current_user.id, active_org_id, session)
     org = await _get_org_or_404(active_org_id, session)
 
@@ -434,7 +434,7 @@ async def get_org_stats(
     current_user=Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
-    active_org_id = current_user.default_org_id or current_user.org_id
+    active_org_id = get_active_org_id(current_user)
 
     async def count(model):
         result = await session.execute(

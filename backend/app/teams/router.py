@@ -29,7 +29,12 @@ from app.auth.schemas import (
     TeamUpdate,
     UserResponse,
 )
-from app.auth.dependencies import require_active_user, require_org_admin
+from app.auth.dependencies import (
+    get_active_org_id,
+    require_active_user,
+    require_org_admin,
+    validate_org_membership,
+)
 
 router = APIRouter(prefix="/teams", tags=["Teams"])
 
@@ -40,6 +45,7 @@ router = APIRouter(prefix="/teams", tags=["Teams"])
 
 @router.get("", response_model=List[TeamResponse], summary="List teams (filterable by type / parent)")
 async def list_teams(
+    org_id: Optional[uuid.UUID] = Query(None, description="Filter teams by org. Defaults to caller's active org."),
     team_type: Optional[str] = Query(None, description="Filter by team_type: business_unit | division | department | group"),
     parent_team_id: Optional[uuid.UUID] = Query(None, description="Filter by parent team ID. Pass null to get root teams."),
     root_only: bool = Query(False, description="Return only top-level teams (no parent)"),
@@ -49,7 +55,8 @@ async def list_teams(
     current_user=Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
-    q = select(Team).where(Team.org_id == current_user.org_id)
+    effective_org = org_id or get_active_org_id(current_user)
+    q = select(Team).where(Team.org_id == effective_org)
     if team_type:
         q = q.where(Team.team_type == team_type)
     if parent_team_id:
@@ -66,25 +73,28 @@ async def list_teams(
 @router.post("", response_model=TeamResponse, status_code=status.HTTP_201_CREATED, summary="Create a team")
 async def create_team(
     body: TeamCreate,
-    current_user=Depends(require_org_admin),
+    current_user=Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
+    # Validate caller is at least a member of (and ideally admin of) the target org
+    await validate_org_membership(current_user, body.org_id, session, require_admin=True)
+
     existing = await session.execute(
-        select(Team).where(Team.org_id == current_user.org_id, Team.name == body.name)
+        select(Team).where(Team.org_id == body.org_id, Team.name == body.name)
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Team name already exists in this organization")
 
     if body.parent_team_id:
         parent = await session.execute(
-            select(Team).where(Team.id == body.parent_team_id, Team.org_id == current_user.org_id)
+            select(Team).where(Team.id == body.parent_team_id, Team.org_id == body.org_id)
         )
         if not parent.scalar_one_or_none():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent team not found")
 
     team = Team(
         id=uuid.uuid4(),
-        org_id=current_user.org_id,
+        org_id=body.org_id,
         parent_team_id=body.parent_team_id,
         domain_id=body.domain_id,
         name=body.name,
@@ -107,7 +117,7 @@ async def get_team(
     current_user=Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
-    return await _get_team_or_404(team_id, current_user.org_id, session)
+    return await _get_team_or_404(team_id, get_active_org_id(current_user), session)
 
 
 @router.put("/{team_id}", response_model=TeamResponse, summary="Update a team")
@@ -117,11 +127,12 @@ async def update_team(
     current_user=Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    team = await _get_team_or_404(team_id, current_user.org_id, session)
+    active_org = get_active_org_id(current_user)
+    team = await _get_team_or_404(team_id, active_org, session)
 
     if body.name is not None and body.name != team.name:
         existing = await session.execute(
-            select(Team).where(Team.org_id == current_user.org_id, Team.name == body.name)
+            select(Team).where(Team.org_id == active_org, Team.name == body.name)
         )
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Team name already exists")
@@ -143,7 +154,7 @@ async def update_team(
         if body.parent_team_id == team_id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A team cannot be its own parent")
         parent = await session.execute(
-            select(Team).where(Team.id == body.parent_team_id, Team.org_id == current_user.org_id)
+            select(Team).where(Team.id == body.parent_team_id, Team.org_id == active_org)
         )
         if not parent.scalar_one_or_none():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent team not found")
@@ -161,7 +172,7 @@ async def delete_team(
     current_user=Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    team = await _get_team_or_404(team_id, current_user.org_id, session)
+    team = await _get_team_or_404(team_id, get_active_org_id(current_user), session)
     await session.delete(team)
     await session.commit()
     return MessageResponse(message=f"Team '{team.name}' deleted successfully")
@@ -181,11 +192,12 @@ async def get_team_hierarchy(
     Returns the team and all its descendants as a nested tree.
     Hierarchy is informational only — access inheritance is a future phase.
     """
-    root = await _get_team_or_404(team_id, current_user.org_id, session)
+    active_org = get_active_org_id(current_user)
+    root = await _get_team_or_404(team_id, active_org, session)
 
     # Load all teams for this org (one query, build tree in Python)
     result = await session.execute(
-        select(Team).where(Team.org_id == current_user.org_id, Team.is_active == True)
+        select(Team).where(Team.org_id == active_org, Team.is_active == True)
     )
     all_teams = result.scalars().all()
     return _build_tree(root.id, all_teams)
@@ -203,7 +215,7 @@ async def list_members(
 ):
     team = await session.execute(
         select(Team)
-        .where(Team.id == team_id, Team.org_id == current_user.org_id)
+        .where(Team.id == team_id, Team.org_id == get_active_org_id(current_user))
         .options(selectinload(Team.members).selectinload(User.teams), selectinload(Team.members).selectinload(User.roles))
     )
     team = team.scalar_one_or_none()
@@ -219,9 +231,10 @@ async def add_member(
     current_user=Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    team = await _get_team_or_404(team_id, current_user.org_id, session)
+    active_org = get_active_org_id(current_user)
+    team = await _get_team_or_404(team_id, active_org, session)
     user_result = await session.execute(
-        select(User).where(User.id == user_id, User.org_id == current_user.org_id)
+        select(User).where(User.id == user_id, User.org_id == active_org)
     )
     user = user_result.scalar_one_or_none()
     if not user:
@@ -249,7 +262,7 @@ async def remove_member(
 ):
     team_with_members = await session.execute(
         select(Team)
-        .where(Team.id == team_id, Team.org_id == current_user.org_id)
+        .where(Team.id == team_id, Team.org_id == get_active_org_id(current_user))
         .options(selectinload(Team.members))
     )
     team = team_with_members.scalar_one_or_none()
@@ -275,7 +288,7 @@ async def get_team_stats(
     current_user: User = Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
-    team = await _get_team_or_404(team_id, current_user.org_id, session)
+    team = await _get_team_or_404(team_id, get_active_org_id(current_user), session)
     member_count = (await session.execute(
         select(func.count()).select_from(user_teams).where(user_teams.c.team_id == team_id)
     )).scalar_one()
@@ -297,7 +310,7 @@ async def list_team_roles(
     current_user: User = Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
-    await _get_team_or_404(team_id, current_user.org_id, session)
+    await _get_team_or_404(team_id, get_active_org_id(current_user), session)
     rows = await session.execute(select(team_roles).where(team_roles.c.team_id == team_id))
     role_ids = [r["role_id"] for r in rows.mappings()]
     if not role_ids:
@@ -314,7 +327,7 @@ async def assign_role_to_team(
     current_user: User = Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    await _get_team_or_404(team_id, current_user.org_id, session)
+    await _get_team_or_404(team_id, get_active_org_id(current_user), session)
     await session.execute(
         pg_insert(team_roles).values(team_id=team_id, role_id=role_id).on_conflict_do_nothing()
     )
@@ -341,7 +354,7 @@ async def list_team_policies(
     current_user: User = Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
-    await _get_team_or_404(team_id, current_user.org_id, session)
+    await _get_team_or_404(team_id, get_active_org_id(current_user), session)
     rows = await session.execute(select(team_policies).where(team_policies.c.team_id == team_id))
     policy_ids = [r["policy_id"] for r in rows.mappings()]
     if not policy_ids:
@@ -358,7 +371,7 @@ async def assign_policy_to_team(
     current_user: User = Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    await _get_team_or_404(team_id, current_user.org_id, session)
+    await _get_team_or_404(team_id, get_active_org_id(current_user), session)
     await session.execute(
         pg_insert(team_policies).values(team_id=team_id, policy_id=policy_id).on_conflict_do_nothing()
     )

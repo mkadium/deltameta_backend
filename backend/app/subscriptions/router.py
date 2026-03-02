@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.auth.models import Subscription
 from app.auth.schemas import MessageResponse, SubscriptionCreate, SubscriptionResponse
-from app.auth.dependencies import require_active_user, require_org_admin
+from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
 
 router = APIRouter(prefix="/subscriptions", tags=["Subscriptions"])
 
@@ -31,7 +31,7 @@ async def list_subscriptions(
     current_user=Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
-    q = select(Subscription).where(Subscription.org_id == current_user.org_id)
+    q = select(Subscription).where(Subscription.org_id == get_active_org_id(current_user))
     if resource_type:
         q = q.where(Subscription.resource_type == resource_type)
     if subscriber_user_id:
@@ -56,7 +56,7 @@ async def create_subscription(
     # Prevent duplicate subscription to the same resource by same subscriber
     existing = await session.execute(
         select(Subscription).where(
-            Subscription.org_id == current_user.org_id,
+            Subscription.org_id == get_active_org_id(current_user),
             Subscription.resource_type == body.resource_type.value,
             Subscription.resource_id == body.resource_id,
             Subscription.user_id == (body.subscriber_user_id or current_user.id),
@@ -70,7 +70,7 @@ async def create_subscription(
 
     sub = Subscription(
         id=uuid.uuid4(),
-        org_id=current_user.org_id,
+        org_id=get_active_org_id(current_user),
         user_id=body.subscriber_user_id or current_user.id,
         resource_type=body.resource_type.value,
         resource_id=body.resource_id,
@@ -88,7 +88,7 @@ async def get_subscription(
     current_user=Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
-    sub = await _get_sub_or_404(subscription_id, current_user.org_id, session)
+    sub = await _get_sub_or_404(subscription_id, get_active_org_id(current_user), session)
     return _to_response(sub)
 
 
@@ -98,7 +98,7 @@ async def delete_subscription(
     current_user=Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
-    sub = await _get_sub_or_404(subscription_id, current_user.org_id, session)
+    sub = await _get_sub_or_404(subscription_id, get_active_org_id(current_user), session)
 
     # Allow if own subscription, or if org admin
     if sub.user_id != current_user.id and not current_user.is_admin:
