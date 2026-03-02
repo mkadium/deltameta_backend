@@ -266,6 +266,7 @@ class RoleUpdate(BaseModel):
 # ---------------------------------------------------------------------------
 
 class TeamCreate(BaseModel):
+    org_id: UUID = Field(..., description="Organization this team belongs to. Must be an org the caller is a member of.")
     name: str = Field(..., min_length=2, max_length=255)
     display_name: Optional[str] = Field(None, max_length=255)
     email: Optional[str] = Field(None, max_length=255)

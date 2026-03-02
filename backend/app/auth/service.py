@@ -49,7 +49,7 @@ def create_access_token(
     expire = now + timedelta(minutes=expiry_minutes)
     payload = {
         "sub": str(user_id),
-        "org": str(org_id),
+        "org_id": str(org_id),
         "is_admin": is_admin,
         "is_global_admin": is_global_admin,
         "iat": now,

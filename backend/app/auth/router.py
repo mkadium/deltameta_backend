@@ -42,6 +42,7 @@ from app.auth.service import (
     verify_password,
 )
 from app.auth.dependencies import (
+    get_active_org_id,
     get_current_user,
     require_active_user,
     require_org_admin,
@@ -246,7 +247,7 @@ async def refresh_token(
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ) -> TokenResponse:
-    active_org_id = current_user.default_org_id or current_user.org_id
+    active_org_id = get_active_org_id(current_user)
     auth_config = await get_auth_config_for_org(str(active_org_id), db)
     token = create_access_token(
         user_id=str(current_user.id),
@@ -416,7 +417,7 @@ async def get_auth_config(
     current_user: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ) -> AuthConfigResponse:
-    cfg = await get_auth_config_for_org(str(current_user.org_id), db)
+    cfg = await get_auth_config_for_org(str(get_active_org_id(current_user)), db)
     return AuthConfigResponse.model_validate(cfg)
 
 
@@ -439,7 +440,7 @@ async def update_auth_config(
     current_user: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ) -> AuthConfigResponse:
-    cfg = await get_auth_config_for_org(str(current_user.org_id), db)
+    cfg = await get_auth_config_for_org(str(get_active_org_id(current_user)), db)
 
     if body.jwt_expiry_minutes is not None:
         cfg.jwt_expiry_minutes = body.jwt_expiry_minutes
