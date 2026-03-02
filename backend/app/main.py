@@ -64,6 +64,19 @@ try:
     from app.setting_nodes.router import router as settings_router
     from app.resources.router import router as resources_router
     from app.nav_items.router import router as nav_router
+    from app.subject_areas.router import router as subject_areas_router
+    from app.lookup.router import router as lookup_router
+    from app.catalog_domains.router import router as catalog_domains_router
+    from app.data_products.router import router as data_products_router
+    from app.glossary.router import router as glossary_router
+    from app.classifications.router import router as classifications_router
+    from app.govern_metrics.router import router as govern_metrics_router
+    from app.change_requests.router import router as change_requests_router
+    from app.activity_feed.router import router as activity_feed_router
+    from app.storage_config.router import router as storage_config_router
+    from app.service_endpoints.router import router as service_endpoints_router
+    from app.monitor.router import router as monitor_router
+    from app.admin.router import router as admin_router
 except Exception:
     from .auth.router import router as auth_router
     from .domains.router import router as domains_router
@@ -75,6 +88,19 @@ except Exception:
     from .setting_nodes.router import router as settings_router
     from .resources.router import router as resources_router
     from .nav_items.router import router as nav_router
+    from .subject_areas.router import router as subject_areas_router
+    from .lookup.router import router as lookup_router
+    from .catalog_domains.router import router as catalog_domains_router
+    from .data_products.router import router as data_products_router
+    from .glossary.router import router as glossary_router
+    from .classifications.router import router as classifications_router
+    from .govern_metrics.router import router as govern_metrics_router
+    from .change_requests.router import router as change_requests_router
+    from .activity_feed.router import router as activity_feed_router
+    from .storage_config.router import router as storage_config_router
+    from .service_endpoints.router import router as service_endpoints_router
+    from .monitor.router import router as monitor_router
+    from .admin.router import router as admin_router
 
 app.include_router(auth_router)
 app.include_router(domains_router)
@@ -86,6 +112,19 @@ app.include_router(subscriptions_router)
 app.include_router(settings_router)
 app.include_router(resources_router)
 app.include_router(nav_router)
+app.include_router(subject_areas_router)
+app.include_router(lookup_router)
+app.include_router(catalog_domains_router)
+app.include_router(data_products_router)
+app.include_router(glossary_router)
+app.include_router(classifications_router)
+app.include_router(govern_metrics_router)
+app.include_router(change_requests_router)
+app.include_router(activity_feed_router)
+app.include_router(storage_config_router)
+app.include_router(service_endpoints_router)
+app.include_router(monitor_router)
+app.include_router(admin_router)
 
 # Initialize OpenTelemetry tracing (optional)
 if setup_tracing:

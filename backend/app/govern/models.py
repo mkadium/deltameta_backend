@@ -1,0 +1,508 @@
+"""
+ORM models for Governance & Catalog tables (Phase 1).
+Tables: subject_areas, catalog_domains, data_products, glossaries, glossary_terms,
+        classifications, classification_tags, govern_metrics, lookup_categories,
+        lookup_values, change_requests, activity_feeds, scheduled_tasks,
+        storage_config, service_endpoints, org_roles, org_policies, team_roles, team_policies
+All live in the `deltameta` schema.
+"""
+from __future__ import annotations
+import uuid
+from datetime import datetime
+from typing import List, Optional
+
+import sqlalchemy as sa
+from sqlalchemy import (
+    Boolean, Column, DateTime, ForeignKey,
+    Integer, String, Text, func,
+)
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import relationship
+
+from app.auth.models import Base, SCHEMA
+
+# ---------------------------------------------------------------------------
+# Association tables (M2M)
+# ---------------------------------------------------------------------------
+
+org_roles = sa.Table(
+    "org_roles", Base.metadata,
+    Column("org_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), primary_key=True),
+    Column("role_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.roles.id", ondelete="CASCADE"), primary_key=True),
+    Column("assigned_at", DateTime(timezone=True), server_default=func.now()),
+    schema=SCHEMA,
+)
+
+org_policies = sa.Table(
+    "org_policies", Base.metadata,
+    Column("org_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), primary_key=True),
+    Column("policy_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.policies.id", ondelete="CASCADE"), primary_key=True),
+    Column("assigned_at", DateTime(timezone=True), server_default=func.now()),
+    schema=SCHEMA,
+)
+
+team_roles = sa.Table(
+    "team_roles", Base.metadata,
+    Column("team_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.teams.id", ondelete="CASCADE"), primary_key=True),
+    Column("role_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.roles.id", ondelete="CASCADE"), primary_key=True),
+    Column("assigned_at", DateTime(timezone=True), server_default=func.now()),
+    schema=SCHEMA,
+)
+
+team_policies = sa.Table(
+    "team_policies", Base.metadata,
+    Column("team_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.teams.id", ondelete="CASCADE"), primary_key=True),
+    Column("policy_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.policies.id", ondelete="CASCADE"), primary_key=True),
+    Column("assigned_at", DateTime(timezone=True), server_default=func.now()),
+    schema=SCHEMA,
+)
+
+catalog_domain_owners = sa.Table(
+    "catalog_domain_owners", Base.metadata,
+    Column("domain_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.catalog_domains.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+catalog_domain_experts = sa.Table(
+    "catalog_domain_experts", Base.metadata,
+    Column("domain_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.catalog_domains.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+data_product_owners = sa.Table(
+    "data_product_owners", Base.metadata,
+    Column("product_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_products.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+data_product_experts = sa.Table(
+    "data_product_experts", Base.metadata,
+    Column("product_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_products.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+glossary_term_owners = sa.Table(
+    "glossary_term_owners", Base.metadata,
+    Column("term_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.glossary_terms.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+glossary_term_reviewers = sa.Table(
+    "glossary_term_reviewers", Base.metadata,
+    Column("term_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.glossary_terms.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+glossary_term_related = sa.Table(
+    "glossary_term_related", Base.metadata,
+    Column("term_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.glossary_terms.id", ondelete="CASCADE"), primary_key=True),
+    Column("related_term_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.glossary_terms.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+glossary_term_likes = sa.Table(
+    "glossary_term_likes", Base.metadata,
+    Column("term_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.glossary_terms.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True),
+    Column("created_at", DateTime(timezone=True), server_default=func.now()),
+    schema=SCHEMA,
+)
+
+classification_owners = sa.Table(
+    "classification_owners", Base.metadata,
+    Column("classification_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.classifications.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+classification_domain_refs = sa.Table(
+    "classification_domain_refs", Base.metadata,
+    Column("classification_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.classifications.id", ondelete="CASCADE"), primary_key=True),
+    Column("domain_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.catalog_domains.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+classification_tag_owners = sa.Table(
+    "classification_tag_owners", Base.metadata,
+    Column("tag_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.classification_tags.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+classification_tag_domain_refs = sa.Table(
+    "classification_tag_domain_refs", Base.metadata,
+    Column("tag_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.classification_tags.id", ondelete="CASCADE"), primary_key=True),
+    Column("domain_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.catalog_domains.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+govern_metric_owners = sa.Table(
+    "govern_metric_owners", Base.metadata,
+    Column("metric_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.govern_metrics.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+change_request_assignees = sa.Table(
+    "change_request_assignees", Base.metadata,
+    Column("change_request_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.change_requests.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+
+# SubjectArea is the same as auth.models.Domain (table renamed to subject_areas).
+# Use app.auth.models.Domain for subject areas queries.
+
+# ---------------------------------------------------------------------------
+# CatalogDomain (governance domain in the data catalog)
+# ---------------------------------------------------------------------------
+
+class CatalogDomain(Base):
+    __tablename__ = "catalog_domains"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    display_name = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    domain_type = Column(String(100), nullable=True)
+    icon = Column(String(512), nullable=True)
+    color = Column(String(50), nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    owners = relationship("User", secondary=catalog_domain_owners, lazy="selectin",
+                          primaryjoin=lambda: CatalogDomain.id == catalog_domain_owners.c.domain_id,
+                          secondaryjoin=lambda: __import__('app.auth.models', fromlist=['User']).User.id == catalog_domain_owners.c.user_id)
+    experts = relationship("User", secondary=catalog_domain_experts, lazy="selectin",
+                           primaryjoin=lambda: CatalogDomain.id == catalog_domain_experts.c.domain_id,
+                           secondaryjoin=lambda: __import__('app.auth.models', fromlist=['User']).User.id == catalog_domain_experts.c.user_id)
+
+
+# ---------------------------------------------------------------------------
+# DataProduct
+# ---------------------------------------------------------------------------
+
+class DataProduct(Base):
+    __tablename__ = "data_products"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    domain_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.catalog_domains.id", ondelete="SET NULL"), nullable=True)
+    name = Column(String(255), nullable=False)
+    display_name = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    version = Column(String(50), nullable=False, default="0.1")
+    status = Column(String(50), nullable=False, default="draft")
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    owners = relationship("User", secondary=data_product_owners, lazy="selectin",
+                          primaryjoin=lambda: DataProduct.id == data_product_owners.c.product_id,
+                          secondaryjoin=lambda: __import__('app.auth.models', fromlist=['User']).User.id == data_product_owners.c.user_id)
+    experts = relationship("User", secondary=data_product_experts, lazy="selectin",
+                           primaryjoin=lambda: DataProduct.id == data_product_experts.c.product_id,
+                           secondaryjoin=lambda: __import__('app.auth.models', fromlist=['User']).User.id == data_product_experts.c.user_id)
+
+
+# ---------------------------------------------------------------------------
+# LookupCategory + LookupValue
+# ---------------------------------------------------------------------------
+
+class LookupCategory(Base):
+    __tablename__ = "lookup_categories"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=True)
+    name = Column(String(255), nullable=False)
+    slug = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    is_system = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    values = relationship("LookupValue", back_populates="category", cascade="all, delete-orphan", lazy="selectin")
+
+
+class LookupValue(Base):
+    __tablename__ = "lookup_values"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    category_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.lookup_categories.id", ondelete="CASCADE"), nullable=False)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=True)
+    label = Column(String(255), nullable=False)
+    value = Column(String(255), nullable=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    category = relationship("LookupCategory", back_populates="values")
+
+
+# ---------------------------------------------------------------------------
+# Glossary + GlossaryTerm
+# ---------------------------------------------------------------------------
+
+class Glossary(Base):
+    __tablename__ = "glossaries"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    display_name = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    terms = relationship("GlossaryTerm", back_populates="glossary", cascade="all, delete-orphan")
+
+
+class GlossaryTerm(Base):
+    __tablename__ = "glossary_terms"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    glossary_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.glossaries.id", ondelete="CASCADE"), nullable=False)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    display_name = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    icon_url = Column(String(512), nullable=True)
+    color = Column(String(50), nullable=True)
+    mutually_exclusive = Column(Boolean, nullable=False, default=False)
+    synonyms = Column(JSONB, nullable=False, default=list)
+    references_data = Column(JSONB, nullable=False, default=list)
+    likes_count = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    glossary = relationship("Glossary", back_populates="terms")
+    owners = relationship("User", secondary=glossary_term_owners, lazy="selectin",
+                          primaryjoin=lambda: GlossaryTerm.id == glossary_term_owners.c.term_id,
+                          secondaryjoin=lambda: __import__('app.auth.models', fromlist=['User']).User.id == glossary_term_owners.c.user_id)
+    reviewers = relationship("User", secondary=glossary_term_reviewers, lazy="selectin",
+                             primaryjoin=lambda: GlossaryTerm.id == glossary_term_reviewers.c.term_id,
+                             secondaryjoin=lambda: __import__('app.auth.models', fromlist=['User']).User.id == glossary_term_reviewers.c.user_id)
+    related_terms = relationship(
+        "GlossaryTerm", secondary=glossary_term_related,
+        primaryjoin=lambda: GlossaryTerm.id == glossary_term_related.c.term_id,
+        secondaryjoin=lambda: GlossaryTerm.id == glossary_term_related.c.related_term_id,
+        lazy="selectin",
+    )
+    liked_by = relationship("User", secondary=glossary_term_likes, lazy="selectin",
+                            primaryjoin=lambda: GlossaryTerm.id == glossary_term_likes.c.term_id,
+                            secondaryjoin=lambda: __import__('app.auth.models', fromlist=['User']).User.id == glossary_term_likes.c.user_id)
+
+
+# ---------------------------------------------------------------------------
+# Classification + ClassificationTag
+# ---------------------------------------------------------------------------
+
+class Classification(Base):
+    __tablename__ = "classifications"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    display_name = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    mutually_exclusive = Column(Boolean, nullable=False, default=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    tags = relationship("ClassificationTag", back_populates="classification", cascade="all, delete-orphan")
+    owners = relationship("User", secondary=classification_owners, lazy="selectin",
+                          primaryjoin=lambda: Classification.id == classification_owners.c.classification_id,
+                          secondaryjoin=lambda: __import__('app.auth.models', fromlist=['User']).User.id == classification_owners.c.user_id)
+    domains = relationship("CatalogDomain", secondary=classification_domain_refs, lazy="selectin",
+                           primaryjoin=lambda: Classification.id == classification_domain_refs.c.classification_id,
+                           secondaryjoin=lambda: CatalogDomain.id == classification_domain_refs.c.domain_id)
+
+
+class ClassificationTag(Base):
+    __tablename__ = "classification_tags"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    classification_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.classifications.id", ondelete="CASCADE"), nullable=False)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    display_name = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    icon_url = Column(String(512), nullable=True)
+    color = Column(String(50), nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    classification = relationship("Classification", back_populates="tags")
+    owners = relationship("User", secondary=classification_tag_owners, lazy="selectin",
+                          primaryjoin=lambda: ClassificationTag.id == classification_tag_owners.c.tag_id,
+                          secondaryjoin=lambda: __import__('app.auth.models', fromlist=['User']).User.id == classification_tag_owners.c.user_id)
+    domains = relationship("CatalogDomain", secondary=classification_tag_domain_refs, lazy="selectin",
+                           primaryjoin=lambda: ClassificationTag.id == classification_tag_domain_refs.c.tag_id,
+                           secondaryjoin=lambda: CatalogDomain.id == classification_tag_domain_refs.c.domain_id)
+
+
+# ---------------------------------------------------------------------------
+# GovernMetric
+# ---------------------------------------------------------------------------
+
+class GovernMetric(Base):
+    __tablename__ = "govern_metrics"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    display_name = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    granularity = Column(String(50), nullable=True)
+    metric_type = Column(String(100), nullable=True)
+    language = Column(String(50), nullable=True)
+    measurement_unit = Column(String(100), nullable=True)
+    code = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    owners = relationship("User", secondary=govern_metric_owners, lazy="selectin",
+                          primaryjoin=lambda: GovernMetric.id == govern_metric_owners.c.metric_id,
+                          secondaryjoin=lambda: __import__('app.auth.models', fromlist=['User']).User.id == govern_metric_owners.c.user_id)
+
+
+# ---------------------------------------------------------------------------
+# ChangeRequest
+# ---------------------------------------------------------------------------
+
+class ChangeRequest(Base):
+    __tablename__ = "change_requests"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    entity_type = Column(String(100), nullable=False)
+    entity_id = Column(UUID(as_uuid=True), nullable=False)
+    field_name = Column(String(255), nullable=False)
+    current_value = Column(Text, nullable=True)
+    new_value = Column(Text, nullable=False)
+    title = Column(String(500), nullable=True)
+    description = Column(Text, nullable=True)
+    status = Column(String(50), nullable=False, default="open")
+    requested_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    resolved_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    assignees = relationship("User", secondary=change_request_assignees, lazy="selectin",
+                             primaryjoin=lambda: ChangeRequest.id == change_request_assignees.c.change_request_id,
+                             secondaryjoin=lambda: __import__('app.auth.models', fromlist=['User']).User.id == change_request_assignees.c.user_id)
+
+
+# ---------------------------------------------------------------------------
+# ActivityFeed
+# ---------------------------------------------------------------------------
+
+class ActivityFeed(Base):
+    __tablename__ = "activity_feeds"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=True)
+    actor_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    entity_type = Column(String(100), nullable=False)
+    entity_id = Column(UUID(as_uuid=True), nullable=True)
+    action = Column(String(100), nullable=False)
+    details = Column(JSONB, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# ScheduledTask
+# ---------------------------------------------------------------------------
+
+class ScheduledTask(Base):
+    __tablename__ = "scheduled_tasks"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=True)
+    entity_type = Column(String(100), nullable=False)
+    entity_id = Column(UUID(as_uuid=True), nullable=True)
+    task_name = Column(String(255), nullable=False)
+    schedule_type = Column(String(50), nullable=False, default="manual")
+    cron_expr = Column(String(100), nullable=True)
+    next_run_at = Column(DateTime(timezone=True), nullable=True)
+    last_run_at = Column(DateTime(timezone=True), nullable=True)
+    last_status = Column(String(50), nullable=True)
+    payload = Column(JSONB, nullable=False, default=dict)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# StorageConfig
+# ---------------------------------------------------------------------------
+
+class StorageConfig(Base):
+    __tablename__ = "storage_config"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=True)
+    provider = Column(String(50), nullable=False, default="minio")
+    endpoint = Column(String(512), nullable=True)
+    bucket = Column(String(255), nullable=True)
+    access_key = Column(String(255), nullable=True)
+    secret_key = Column(String(512), nullable=True)
+    region = Column(String(100), nullable=True)
+    extra = Column(JSONB, nullable=False, default=dict)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# ServiceEndpoint
+# ---------------------------------------------------------------------------
+
+class ServiceEndpoint(Base):
+    __tablename__ = "service_endpoints"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=True)
+    service_name = Column(String(100), nullable=False)
+    base_url = Column(String(512), nullable=False)
+    extra = Column(JSONB, nullable=False, default=dict)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
