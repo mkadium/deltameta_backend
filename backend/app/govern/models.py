@@ -161,6 +161,45 @@ change_request_assignees = sa.Table(
 # Use app.auth.models.Domain for subject areas queries.
 
 # ---------------------------------------------------------------------------
+# Dataset & DataAsset M2M association tables
+# ---------------------------------------------------------------------------
+
+dataset_owners = sa.Table(
+    "dataset_owners", Base.metadata,
+    Column("dataset_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.datasets.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+dataset_experts = sa.Table(
+    "dataset_experts", Base.metadata,
+    Column("dataset_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.datasets.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+data_asset_owners = sa.Table(
+    "data_asset_owners", Base.metadata,
+    Column("asset_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_assets.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+data_asset_experts = sa.Table(
+    "data_asset_experts", Base.metadata,
+    Column("asset_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_assets.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+data_asset_tags = sa.Table(
+    "data_asset_tags", Base.metadata,
+    Column("asset_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_assets.id", ondelete="CASCADE"), primary_key=True),
+    Column("tag_id", UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.classification_tags.id", ondelete="CASCADE"), primary_key=True),
+    schema=SCHEMA,
+)
+
+# ---------------------------------------------------------------------------
 # CatalogDomain (governance domain in the data catalog)
 # ---------------------------------------------------------------------------
 
@@ -506,3 +545,119 @@ class ServiceEndpoint(Base):
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# Dataset  (raw data collection: DB schema, S3 bucket, API source, etc.)
+# ---------------------------------------------------------------------------
+
+class Dataset(Base):
+    __tablename__ = "datasets"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    domain_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.catalog_domains.id", ondelete="SET NULL"), nullable=True)
+    name = Column(String(255), nullable=False)
+    display_name = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    # e.g. "database", "schema", "s3_bucket", "api", "file"
+    source_type = Column(String(100), nullable=True)
+    source_url = Column(String(512), nullable=True)
+    tags = Column(JSONB, nullable=False, default=list, doc="Free-form string tags for quick labelling")
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    domain = relationship("CatalogDomain", foreign_keys=[domain_id])
+    assets = relationship("DataAsset", back_populates="dataset", cascade="all, delete-orphan")
+    owners = relationship(
+        "User", secondary=dataset_owners, lazy="selectin",
+        primaryjoin=lambda: Dataset.id == dataset_owners.c.dataset_id,
+        secondaryjoin=lambda: __import__('app.auth.models', fromlist=['User']).User.id == dataset_owners.c.user_id,
+    )
+    experts = relationship(
+        "User", secondary=dataset_experts, lazy="selectin",
+        primaryjoin=lambda: Dataset.id == dataset_experts.c.dataset_id,
+        secondaryjoin=lambda: __import__('app.auth.models', fromlist=['User']).User.id == dataset_experts.c.user_id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# DataAsset  (cataloged asset: table, view, file, API endpoint)
+# ---------------------------------------------------------------------------
+
+class DataAsset(Base):
+    __tablename__ = "data_assets"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    dataset_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.datasets.id", ondelete="CASCADE"), nullable=False)
+    data_product_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_products.id", ondelete="SET NULL"), nullable=True)
+    name = Column(String(255), nullable=False)
+    display_name = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    # e.g. "table", "view", "materialized_view", "file", "api_endpoint", "stream"
+    asset_type = Column(String(100), nullable=False, default="table")
+    # Fully qualified name: e.g. "mydb.public.sales_transactions"
+    fully_qualified_name = Column(String(512), nullable=True)
+    # Sensitivity: "public", "internal", "confidential", "restricted"
+    sensitivity = Column(String(50), nullable=True, default="internal")
+    row_count = Column(Integer, nullable=True)
+    size_bytes = Column(Integer, nullable=True)
+    is_pii = Column(Boolean, nullable=False, default=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    dataset = relationship("Dataset", back_populates="assets")
+    data_product = relationship("DataProduct", foreign_keys=[data_product_id])
+    columns = relationship("DataAssetColumn", back_populates="asset", cascade="all, delete-orphan", lazy="selectin")
+    owners = relationship(
+        "User", secondary=data_asset_owners, lazy="selectin",
+        primaryjoin=lambda: DataAsset.id == data_asset_owners.c.asset_id,
+        secondaryjoin=lambda: __import__('app.auth.models', fromlist=['User']).User.id == data_asset_owners.c.user_id,
+    )
+    experts = relationship(
+        "User", secondary=data_asset_experts, lazy="selectin",
+        primaryjoin=lambda: DataAsset.id == data_asset_experts.c.asset_id,
+        secondaryjoin=lambda: __import__('app.auth.models', fromlist=['User']).User.id == data_asset_experts.c.user_id,
+    )
+    classification_tags = relationship(
+        "ClassificationTag", secondary=data_asset_tags, lazy="selectin",
+        primaryjoin=lambda: DataAsset.id == data_asset_tags.c.asset_id,
+        secondaryjoin=lambda: ClassificationTag.id == data_asset_tags.c.tag_id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# DataAssetColumn  (column-level schema metadata)
+# ---------------------------------------------------------------------------
+
+class DataAssetColumn(Base):
+    __tablename__ = "data_asset_columns"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    asset_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_assets.id", ondelete="CASCADE"), nullable=False)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    display_name = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    # e.g. "bigint", "varchar", "timestamp", "boolean", "float", "json"
+    data_type = Column(String(100), nullable=False, default="varchar")
+    ordinal_position = Column(Integer, nullable=False, default=0)
+    is_nullable = Column(Boolean, nullable=False, default=True)
+    is_primary_key = Column(Boolean, nullable=False, default=False)
+    is_foreign_key = Column(Boolean, nullable=False, default=False)
+    is_pii = Column(Boolean, nullable=False, default=False)
+    # Sensitivity override at column level
+    sensitivity = Column(String(50), nullable=True)
+    default_value = Column(String(512), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    asset = relationship("DataAsset", back_populates="columns")
