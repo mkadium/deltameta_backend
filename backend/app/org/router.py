@@ -10,6 +10,7 @@ Endpoints:
 
   GET    /orgs/{org_id}/members     — List org members
   POST   /orgs/{org_id}/members/{user_id}   — Add user to org (org admin)
+  PATCH  /orgs/{org_id}/members/{user_id}   — Update member's is_org_admin flag (org admin)
   DELETE /orgs/{org_id}/members/{user_id}   — Remove user from org (org admin)
 
   GET    /org/preferences           — Get preferences for current user's active org (backward compat)
@@ -333,6 +334,75 @@ async def add_member_to_org(
     )
     await session.commit()
     return MessageResponse(message=f"User '{user.name}' added to organization")
+
+
+@router.patch(
+    "/orgs/{org_id}/members/{user_id}",
+    response_model=OrgMemberResponse,
+    tags=["Organization"],
+    summary="Update a member's role in the organization (org admin only)",
+    description=(
+        "Toggle `is_org_admin` for an existing member. "
+        "Prevents removing the last admin of an org."
+    ),
+)
+async def update_member_role(
+    org_id: uuid.UUID,
+    user_id: uuid.UUID,
+    is_org_admin: bool = Query(..., description="Set to true to promote to org admin, false to demote"),
+    current_user=Depends(require_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await _assert_org_admin(current_user.id, org_id, session)
+
+    # Fetch the membership row
+    result = await session.execute(
+        select(user_organizations).where(
+            user_organizations.c.user_id == user_id,
+            user_organizations.c.org_id == org_id,
+            user_organizations.c.is_active == True,
+        )
+    )
+    row = result.mappings().first()
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User is not an active member of this organization",
+        )
+
+    # Guard: cannot demote if this person is the only admin
+    if not is_org_admin and row["is_org_admin"]:
+        admin_count_result = await session.execute(
+            select(func.count()).select_from(user_organizations).where(
+                user_organizations.c.org_id == org_id,
+                user_organizations.c.is_org_admin == True,
+                user_organizations.c.is_active == True,
+            )
+        )
+        if admin_count_result.scalar_one() <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot demote: this user is the only admin of this organization",
+            )
+
+    await session.execute(
+        update(user_organizations)
+        .where(
+            user_organizations.c.user_id == user_id,
+            user_organizations.c.org_id == org_id,
+        )
+        .values(is_org_admin=is_org_admin)
+    )
+    await session.commit()
+
+    # Return updated membership row
+    updated = await session.execute(
+        select(user_organizations).where(
+            user_organizations.c.user_id == user_id,
+            user_organizations.c.org_id == org_id,
+        )
+    )
+    return dict(updated.mappings().first())
 
 
 @router.delete(

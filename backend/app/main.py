@@ -55,7 +55,6 @@ app.add_middleware(
 # Register routers
 try:
     from app.auth.router import router as auth_router
-    from app.domains.router import router as domains_router
     from app.teams.router import router as teams_router
     from app.roles.router import router as roles_router
     from app.policies.router import router as policies_router
@@ -79,7 +78,6 @@ try:
     from app.admin.router import router as admin_router
 except Exception:
     from .auth.router import router as auth_router
-    from .domains.router import router as domains_router
     from .teams.router import router as teams_router
     from .roles.router import router as roles_router
     from .policies.router import router as policies_router
@@ -103,7 +101,6 @@ except Exception:
     from .admin.router import router as admin_router
 
 app.include_router(auth_router)
-app.include_router(domains_router)
 app.include_router(teams_router)
 app.include_router(roles_router)
 app.include_router(policies_router)

@@ -75,6 +75,11 @@ async def create_subject_area(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
+    existing = await db.execute(
+        select(SubjectArea).where(SubjectArea.org_id == user.org_id, SubjectArea.name == body.name)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Subject area name already exists in this organization")
     obj = SubjectArea(org_id=user.org_id, **body.model_dump())
     db.add(obj)
     await db.commit()
