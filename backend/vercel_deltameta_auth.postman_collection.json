@@ -154,6 +154,26 @@
       "key": "admin_created_user_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "term_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "entity_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "resource_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "category_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {
@@ -707,21 +727,84 @@
                 {
                   "key": "org_id",
                   "value": "{{org_id}}",
-                  "disabled": true
+                  "disabled": true,
+                  "description": ""
                 },
                 {
                   "key": "team_type",
                   "value": "department",
-                  "disabled": true
+                  "disabled": true,
+                  "description": "business_unit | division | department | group"
+                },
+                {
+                  "key": "parent_team_id",
+                  "value": "{{parent_team_id}}",
+                  "disabled": true,
+                  "description": ""
                 },
                 {
                   "key": "root_only",
                   "value": "false",
-                  "disabled": true
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "domain_id",
+                  "value": "{{domain_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "public_team_view",
+                  "value": "false",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "member_user_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Teams a specific user belongs to."
+                },
+                {
+                  "key": "role_id",
+                  "value": "{{role_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Teams that have this role assigned."
+                },
+                {
+                  "key": "policy_id",
+                  "value": "{{policy_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Teams that have this policy assigned."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1\u2013200)."
                 }
               ]
             },
-            "description": "List teams. Filter by org_id (defaults to active org if omitted), team_type, parent."
+            "description": "List teams with comprehensive filters including relational joins (member, role, policy)."
           },
           "response": []
         },
@@ -1184,8 +1267,59 @@
               ],
               "path": [
                 "policies"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "resource",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "role_id",
+                  "value": "{{role_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Policies assigned to this role."
+                },
+                {
+                  "key": "team_id",
+                  "value": "{{team_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Policies assigned to this team."
+                },
+                {
+                  "key": "user_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Policies directly assigned to this user."
+                },
+                {
+                  "key": "org_id_assigned",
+                  "value": "{{org_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Policies assigned to this org."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1\u2013200)."
+                }
               ]
-            }
+            },
+            "description": "List policies with relational filters (by role, team, user, org assignment)."
           },
           "event": [
             {
@@ -1453,8 +1587,53 @@
               ],
               "path": [
                 "roles"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "is_system_role",
+                  "value": "false",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "user_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Roles assigned to a specific user."
+                },
+                {
+                  "key": "team_id",
+                  "value": "{{team_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Roles assigned to a specific team."
+                },
+                {
+                  "key": "org_id_assigned",
+                  "value": "{{org_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Roles assigned to a specific org."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1\u2013200)."
+                }
               ]
-            }
+            },
+            "description": "List roles with relational filters (by user, team, or org assignment)."
           },
           "event": [
             {
@@ -1855,8 +2034,59 @@
                 "orgs",
                 "{{org_id}}",
                 "members"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "is_org_admin",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "domain_id",
+                  "value": "{{domain_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "team_id",
+                  "value": "{{team_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Members who belong to this team."
+                },
+                {
+                  "key": "role_id",
+                  "value": "{{role_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Members who have this role assigned."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1\u2013200)."
+                }
               ]
-            }
+            },
+            "description": "List org members with relational filters (team_id, role_id)."
           },
           "event": [
             {
@@ -2381,8 +2611,59 @@
               ],
               "path": [
                 "subscriptions"
+              ],
+              "query": [
+                {
+                  "key": "resource_type",
+                  "value": "",
+                  "disabled": true,
+                  "description": "dataset | data_product | team | user | ..."
+                },
+                {
+                  "key": "resource_id",
+                  "value": "{{resource_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "subscriber_user_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "notify_on_update",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "subscribed_after",
+                  "value": "2024-01-01T00:00:00",
+                  "disabled": true,
+                  "description": "ISO 8601 datetime \u2014 subscriptions after this date."
+                },
+                {
+                  "key": "subscribed_before",
+                  "value": "2099-12-31T23:59:59",
+                  "disabled": true,
+                  "description": "ISO 8601 datetime \u2014 subscriptions before this date."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1\u2013200)."
+                }
               ]
-            }
+            },
+            "description": "List subscriptions with date range filters (subscribed_after, subscribed_before)."
           },
           "event": [
             {
@@ -4036,16 +4317,48 @@
                 {
                   "key": "search",
                   "value": "",
-                  "disabled": true
+                  "disabled": true,
+                  "description": ""
                 },
                 {
                   "key": "is_active",
                   "value": "true",
-                  "disabled": true
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "domain_type",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "owner_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "team_id",
+                  "value": "{{team_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Subject areas that the given team is linked to."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1\u2013200)."
                 }
               ]
             },
-            "description": "List subject areas (formerly /domains). Replaces /domains."
+            "description": "List subject areas. team_id filter returns subject areas linked to the given team."
           },
           "response": []
         },
@@ -4189,8 +4502,35 @@
               ],
               "path": [
                 "lookup"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Search by category name or slug."
+                },
+                {
+                  "key": "is_system",
+                  "value": "",
+                  "disabled": true,
+                  "description": "true = system categories only; false = org-custom only."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1\u2013200)."
+                }
               ]
-            }
+            },
+            "description": "List lookup categories. New: search and pagination."
           },
           "event": [
             {
@@ -4455,6 +4795,58 @@
               }
             }
           ]
+        },
+        {
+          "id": "1191f534-abe7-4f87-a595-7a0a95753144",
+          "name": "List Lookup Values",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/lookup/{{category_id}}/values",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "lookup",
+                "{{category_id}}",
+                "values"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Search by label or value."
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "NEW endpoint \u2014 list values for a lookup category with search and is_active filters."
+          },
+          "response": []
         }
       ],
       "description": "Dropdown values for domain_type, metric_type, granularity, etc. Frontend uses these to populate dropdowns with an 'Add' button."
@@ -4479,8 +4871,59 @@
               ],
               "path": [
                 "catalog-domains"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "domain_type",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "created_by",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "Filter by creator user ID."
+                },
+                {
+                  "key": "owner_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Domains owned by this user."
+                },
+                {
+                  "key": "expert_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Domains where this user is an expert."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1\u2013200)."
+                }
               ]
-            }
+            },
+            "description": "List catalog domains with M2M filters (owner, expert)."
           },
           "event": [
             {
@@ -4735,8 +5178,71 @@
               ],
               "path": [
                 "data-products"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "domain_id",
+                  "value": "{{catalog_domain_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "status",
+                  "value": "draft",
+                  "disabled": true,
+                  "description": "draft | published | deprecated"
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "version",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "created_by",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "owner_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Products owned by this user."
+                },
+                {
+                  "key": "expert_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Products where this user is an expert."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1\u2013200)."
+                }
               ]
-            }
+            },
+            "description": "List data products with M2M filters (owner, expert)."
           },
           "event": [
             {
@@ -5125,8 +5631,71 @@
                 "glossaries",
                 "{{glossary_id}}",
                 "terms"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "mutually_exclusive",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "created_by",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "owner_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Terms owned by this user."
+                },
+                {
+                  "key": "reviewer_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Terms reviewed by this user."
+                },
+                {
+                  "key": "liked_by",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Terms liked by this user."
+                },
+                {
+                  "key": "related_term_id",
+                  "value": "{{term_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Terms related to this specific term."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1\u2013200)."
+                }
               ]
-            }
+            },
+            "description": "List glossary terms with M2M filters (owner, reviewer, liked_by, related_term)."
           },
           "event": [
             {
@@ -5510,8 +6079,59 @@
               ],
               "path": [
                 "classifications"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "mutually_exclusive",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "created_by",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "owner_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Classifications owned by this user."
+                },
+                {
+                  "key": "catalog_domain_id",
+                  "value": "{{catalog_domain_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Classifications linked to this catalog domain."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1\u2013200)."
+                }
               ]
-            }
+            },
+            "description": "List classifications with M2M filters (owner, catalog domain)."
           },
           "event": [
             {
@@ -5649,8 +6269,53 @@
                 "classifications",
                 "{{classification_id}}",
                 "tags"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "created_by",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "owner_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Tags owned by this user."
+                },
+                {
+                  "key": "catalog_domain_id",
+                  "value": "{{catalog_domain_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Tags linked to this catalog domain."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1\u2013200)."
+                }
               ]
-            }
+            },
+            "description": "List classification tags with M2M filters (owner, catalog domain)."
           },
           "event": [
             {
@@ -5910,8 +6575,65 @@
               ],
               "path": [
                 "govern-metrics"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "metric_type",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "granularity",
+                  "value": "",
+                  "disabled": true,
+                  "description": "daily | weekly | monthly"
+                },
+                {
+                  "key": "language",
+                  "value": "",
+                  "disabled": true,
+                  "description": "SQL | Python"
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "created_by",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "owner_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Metrics owned by this user."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1\u2013200)."
+                }
               ]
-            }
+            },
+            "description": "List governance metrics with M2M owner filter."
           },
           "event": [
             {
@@ -6139,8 +6861,65 @@
               ],
               "path": [
                 "change-requests"
+              ],
+              "query": [
+                {
+                  "key": "entity_type",
+                  "value": "",
+                  "disabled": true,
+                  "description": "catalog_domain | glossary_term | data_product | ..."
+                },
+                {
+                  "key": "entity_id",
+                  "value": "{{entity_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "status",
+                  "value": "open",
+                  "disabled": true,
+                  "description": "open | in_review | approved | rejected | withdrawn"
+                },
+                {
+                  "key": "requested_by",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "resolved_by",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "Filter by resolver user ID."
+                },
+                {
+                  "key": "field_name",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "assignee_id",
+                  "value": "{{user_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] CRs assigned to this user."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1\u2013200)."
+                }
               ]
-            }
+            },
+            "description": "List change requests with relational assignee_id and resolved_by filters."
           },
           "event": [
             {
@@ -7745,9 +8524,71 @@
               "path": [
                 "admin",
                 "users"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Search by email, display_name, or username."
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "is_admin",
+                  "value": "false",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "is_verified",
+                  "value": "false",
+                  "disabled": true,
+                  "description": "Filter by email-verified status."
+                },
+                {
+                  "key": "team_id",
+                  "value": "{{team_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Users belonging to this team."
+                },
+                {
+                  "key": "role_id",
+                  "value": "{{role_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Users with this role assigned."
+                },
+                {
+                  "key": "policy_id",
+                  "value": "{{policy_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Users with this policy directly assigned."
+                },
+                {
+                  "key": "domain_id",
+                  "value": "{{domain_id}}",
+                  "disabled": true,
+                  "description": "[RELATIONAL] Users whose primary subject area matches."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": "Offset for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Max records per page (1\u2013200)."
+                }
               ]
             },
-            "description": "List all users in the active org. Supports search, is_active, is_admin filters."
+            "description": "List admin users with comprehensive filters including relational joins."
           },
           "response": []
         },

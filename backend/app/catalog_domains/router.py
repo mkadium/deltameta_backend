@@ -1,6 +1,7 @@
 """Catalog Domains — Governance data domains (separate from IAM subject areas)."""
 from __future__ import annotations
 import uuid
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -9,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.auth.dependencies import require_active_user
+from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
 from app.auth.models import User
 from app.govern.models import (
     CatalogDomain, catalog_domain_owners, catalog_domain_experts,
@@ -62,6 +63,9 @@ class CatalogDomainOut(BaseModel):
     icon: Optional[str]
     color: Optional[str]
     is_active: bool
+    created_by: Optional[uuid.UUID]
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
     owners: List[UserRef] = []
     experts: List[UserRef] = []
 
@@ -82,22 +86,33 @@ async def _sync_m2m(db: AsyncSession, table, col_a, val_a, col_b, ids: List[uuid
 
 @router.get("", response_model=List[CatalogDomainOut])
 async def list_catalog_domains(
-    search: Optional[str] = Query(None),
-    domain_type: Optional[str] = Query(None),
+    search: Optional[str] = Query(None, description="Search by name or display_name."),
+    domain_type: Optional[str] = Query(None, description="Filter by domain type."),
     is_active: Optional[bool] = Query(True),
-    skip: int = 0,
-    limit: int = 50,
+    created_by: Optional[uuid.UUID] = Query(None, description="Filter by creator user ID."),
+    # Relational filters
+    owner_id: Optional[uuid.UUID] = Query(None, description="Filter domains owned by this user (M2M)."),
+    expert_id: Optional[uuid.UUID] = Query(None, description="Filter domains where this user is an expert (M2M)."),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    stmt = select(CatalogDomain).where(CatalogDomain.org_id == user.org_id)
+    stmt = select(CatalogDomain).where(CatalogDomain.org_id == get_active_org_id(user)).distinct()
     if is_active is not None:
         stmt = stmt.where(CatalogDomain.is_active == is_active)
     if search:
-        stmt = stmt.where(CatalogDomain.name.ilike(f"%{search}%"))
+        stmt = stmt.where(CatalogDomain.name.ilike(f"%{search}%") | CatalogDomain.display_name.ilike(f"%{search}%"))
     if domain_type:
         stmt = stmt.where(CatalogDomain.domain_type == domain_type)
-    stmt = stmt.offset(skip).limit(limit)
+    if created_by:
+        stmt = stmt.where(CatalogDomain.created_by == created_by)
+    # Relational JOIN filters
+    if owner_id is not None:
+        stmt = stmt.join(catalog_domain_owners, catalog_domain_owners.c.domain_id == CatalogDomain.id).where(catalog_domain_owners.c.user_id == owner_id)
+    if expert_id is not None:
+        stmt = stmt.join(catalog_domain_experts, catalog_domain_experts.c.domain_id == CatalogDomain.id).where(catalog_domain_experts.c.user_id == expert_id)
+    stmt = stmt.order_by(CatalogDomain.name).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -105,11 +120,12 @@ async def list_catalog_domains(
 @router.post("", response_model=CatalogDomainOut, status_code=status.HTTP_201_CREATED)
 async def create_catalog_domain(
     body: CatalogDomainCreate,
-    user: User = Depends(require_active_user),
+    user: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ):
+    active_org = get_active_org_id(user)
     payload = body.model_dump(exclude={"owner_ids", "expert_ids"})
-    obj = CatalogDomain(org_id=user.org_id, created_by=user.id, **payload)
+    obj = CatalogDomain(org_id=active_org, created_by=user.id, **payload)
     db.add(obj)
     await db.flush([obj])
     if body.owner_ids:
@@ -117,7 +133,7 @@ async def create_catalog_domain(
     if body.expert_ids:
         await _sync_m2m(db, catalog_domain_experts, "domain_id", obj.id, "user_id", body.expert_ids)
     await emit(db, entity_type="catalog_domain", action="created", entity_id=obj.id,
-               org_id=user.org_id, actor_id=user.id, details={"name": obj.name})
+               org_id=active_org, actor_id=user.id, details={"name": obj.name})
     await db.commit()
     await db.refresh(obj)
     return obj
@@ -130,7 +146,7 @@ async def get_catalog_domain(
     db: AsyncSession = Depends(get_session),
 ):
     obj = await db.get(CatalogDomain, domain_id)
-    if not obj or obj.org_id != user.org_id:
+    if not obj or obj.org_id != get_active_org_id(user):
         raise HTTPException(status_code=404, detail="Catalog domain not found")
     return obj
 
@@ -139,11 +155,12 @@ async def get_catalog_domain(
 async def update_catalog_domain(
     domain_id: uuid.UUID,
     body: CatalogDomainUpdate,
-    user: User = Depends(require_active_user),
+    user: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ):
+    active_org = get_active_org_id(user)
     obj = await db.get(CatalogDomain, domain_id)
-    if not obj or obj.org_id != user.org_id:
+    if not obj or obj.org_id != active_org:
         raise HTTPException(status_code=404, detail="Catalog domain not found")
     data = body.model_dump(exclude_unset=True)
     owner_ids = data.pop("owner_ids", None)
@@ -155,7 +172,7 @@ async def update_catalog_domain(
     if expert_ids is not None:
         await _sync_m2m(db, catalog_domain_experts, "domain_id", obj.id, "user_id", expert_ids)
     await emit(db, entity_type="catalog_domain", action="updated", entity_id=obj.id,
-               org_id=user.org_id, actor_id=user.id)
+               org_id=active_org, actor_id=user.id)
     await db.commit()
     await db.refresh(obj)
     return obj
@@ -164,11 +181,11 @@ async def update_catalog_domain(
 @router.delete("/{domain_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_catalog_domain(
     domain_id: uuid.UUID,
-    user: User = Depends(require_active_user),
+    user: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ):
     obj = await db.get(CatalogDomain, domain_id)
-    if not obj or obj.org_id != user.org_id:
+    if not obj or obj.org_id != get_active_org_id(user):
         raise HTTPException(status_code=404, detail="Catalog domain not found")
     await db.delete(obj)
     await db.commit()

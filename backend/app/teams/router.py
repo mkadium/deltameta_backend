@@ -43,28 +43,48 @@ router = APIRouter(prefix="/teams", tags=["Teams"])
 # CRUD
 # ---------------------------------------------------------------------------
 
-@router.get("", response_model=List[TeamResponse], summary="List teams (filterable by type / parent)")
+@router.get("", response_model=List[TeamResponse], summary="List teams (filterable by type / parent / domain / member)")
 async def list_teams(
-    org_id: Optional[uuid.UUID] = Query(None, description="Filter teams by org. Defaults to caller's active org."),
+    org_id: Optional[uuid.UUID] = Query(None, description="Filter by org. Defaults to caller's active org."),
     team_type: Optional[str] = Query(None, description="Filter by team_type: business_unit | division | department | group"),
-    parent_team_id: Optional[uuid.UUID] = Query(None, description="Filter by parent team ID. Pass null to get root teams."),
-    root_only: bool = Query(False, description="Return only top-level teams (no parent)"),
+    parent_team_id: Optional[uuid.UUID] = Query(None, description="Filter by parent team ID."),
+    root_only: bool = Query(False, description="Return only top-level teams (no parent)."),
+    domain_id: Optional[uuid.UUID] = Query(None, description="Filter teams belonging to a subject area."),
+    public_team_view: Optional[bool] = Query(None, description="Filter by public visibility flag."),
+    search: Optional[str] = Query(None, description="Search by team name or display_name."),
     is_active: Optional[bool] = Query(None),
+    # Relational filters
+    member_user_id: Optional[uuid.UUID] = Query(None, description="Filter teams that a specific user belongs to."),
+    role_id: Optional[uuid.UUID] = Query(None, description="Filter teams that have a specific role assigned."),
+    policy_id: Optional[uuid.UUID] = Query(None, description="Filter teams that have a specific policy assigned."),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     current_user=Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
     effective_org = org_id or get_active_org_id(current_user)
-    q = select(Team).where(Team.org_id == effective_org)
+    q = select(Team).where(Team.org_id == effective_org).distinct()
     if team_type:
         q = q.where(Team.team_type == team_type)
     if parent_team_id:
         q = q.where(Team.parent_team_id == parent_team_id)
     if root_only:
         q = q.where(Team.parent_team_id.is_(None))
+    if domain_id:
+        q = q.where(Team.domain_id == domain_id)
+    if public_team_view is not None:
+        q = q.where(Team.public_team_view == public_team_view)
+    if search:
+        q = q.where(Team.name.ilike(f"%{search}%") | Team.display_name.ilike(f"%{search}%"))
     if is_active is not None:
         q = q.where(Team.is_active == is_active)
+    # Relational JOIN filters
+    if member_user_id is not None:
+        q = q.join(user_teams, user_teams.c.team_id == Team.id).where(user_teams.c.user_id == member_user_id)
+    if role_id is not None:
+        q = q.join(team_roles, team_roles.c.team_id == Team.id).where(team_roles.c.role_id == role_id)
+    if policy_id is not None:
+        q = q.join(team_policies, team_policies.c.team_id == Team.id).where(team_policies.c.policy_id == policy_id)
     q = q.order_by(Team.name).offset(skip).limit(limit)
     result = await session.execute(q)
     return result.scalars().all()
@@ -293,7 +313,7 @@ async def get_team_stats(
         select(func.count()).select_from(user_teams).where(user_teams.c.team_id == team_id)
     )).scalar_one()
     sub_team_count = (await session.execute(
-        select(func.count()).where(Team.parent_team_id == team_id, Team.is_active == True)
+        select(func.count()).select_from(Team).where(Team.parent_team_id == team_id, Team.is_active == True)
     )).scalar_one()
     return {
         "team_id": str(team_id),
@@ -327,7 +347,11 @@ async def assign_role_to_team(
     current_user: User = Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    await _get_team_or_404(team_id, get_active_org_id(current_user), session)
+    active_org = get_active_org_id(current_user)
+    await _get_team_or_404(team_id, active_org, session)
+    role = (await session.execute(select(Role).where(Role.id == role_id, Role.org_id == active_org))).scalar_one_or_none()
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found in this organization")
     await session.execute(
         pg_insert(team_roles).values(team_id=team_id, role_id=role_id).on_conflict_do_nothing()
     )
@@ -371,7 +395,11 @@ async def assign_policy_to_team(
     current_user: User = Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    await _get_team_or_404(team_id, get_active_org_id(current_user), session)
+    active_org = get_active_org_id(current_user)
+    await _get_team_or_404(team_id, active_org, session)
+    policy = (await session.execute(select(Policy).where(Policy.id == policy_id, Policy.org_id == active_org))).scalar_one_or_none()
+    if not policy:
+        raise HTTPException(status_code=404, detail="Policy not found in this organization")
     await session.execute(
         pg_insert(team_policies).values(team_id=team_id, policy_id=policy_id).on_conflict_do_nothing()
     )

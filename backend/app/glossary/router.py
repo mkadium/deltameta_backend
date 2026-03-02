@@ -5,6 +5,7 @@ import io
 import uuid
 from typing import List, Optional
 
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, File, status
 from pydantic import BaseModel
 from sqlalchemy import select, func
@@ -12,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import get_session
-from app.auth.dependencies import require_active_user
+from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
 from app.auth.models import User
 from app.govern.models import (
     Glossary, GlossaryTerm,
@@ -54,6 +55,9 @@ class GlossaryOut(BaseModel):
     display_name: Optional[str]
     description: Optional[str]
     is_active: bool
+    created_by: Optional[uuid.UUID]
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
 
     class Config:
         from_attributes = True
@@ -128,7 +132,10 @@ async def _get_term(db, term_id, org_id):
         .options(
             selectinload(GlossaryTerm.owners),
             selectinload(GlossaryTerm.reviewers),
-            selectinload(GlossaryTerm.related_terms),
+            # Load related_terms and their nested owners/reviewers/related_terms to avoid MissingGreenlet
+            selectinload(GlossaryTerm.related_terms).selectinload(GlossaryTerm.owners),
+            selectinload(GlossaryTerm.related_terms).selectinload(GlossaryTerm.reviewers),
+            selectinload(GlossaryTerm.related_terms).selectinload(GlossaryTerm.related_terms),
         )
     )
     result = await db.execute(stmt)
@@ -139,13 +146,22 @@ async def _get_term(db, term_id, org_id):
 
 @router.get("", response_model=List[GlossaryOut])
 async def list_glossaries(
-    search: Optional[str] = Query(None),
+    search: Optional[str] = Query(None, description="Search by name or display_name."),
+    is_active: Optional[bool] = Query(None, description="Filter by active/inactive."),
+    created_by: Optional[uuid.UUID] = Query(None, description="Filter by creator user ID."),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    stmt = select(Glossary).where(Glossary.org_id == user.org_id)
+    stmt = select(Glossary).where(Glossary.org_id == get_active_org_id(user))
     if search:
-        stmt = stmt.where(Glossary.name.ilike(f"%{search}%"))
+        stmt = stmt.where(Glossary.name.ilike(f"%{search}%") | Glossary.display_name.ilike(f"%{search}%"))
+    if is_active is not None:
+        stmt = stmt.where(Glossary.is_active == is_active)
+    if created_by:
+        stmt = stmt.where(Glossary.created_by == created_by)
+    stmt = stmt.order_by(Glossary.name).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -156,7 +172,7 @@ async def create_glossary(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    obj = Glossary(org_id=user.org_id, created_by=user.id, **body.model_dump())
+    obj = Glossary(org_id=get_active_org_id(user), created_by=user.id, **body.model_dump())
     db.add(obj)
     await db.commit()
     await db.refresh(obj)
@@ -170,7 +186,7 @@ async def get_glossary(
     db: AsyncSession = Depends(get_session),
 ):
     obj = await db.get(Glossary, glossary_id)
-    if not obj or obj.org_id != user.org_id:
+    if not obj or obj.org_id != get_active_org_id(user):
         raise HTTPException(status_code=404, detail="Glossary not found")
     return obj
 
@@ -183,7 +199,7 @@ async def update_glossary(
     db: AsyncSession = Depends(get_session),
 ):
     obj = await db.get(Glossary, glossary_id)
-    if not obj or obj.org_id != user.org_id:
+    if not obj or obj.org_id != get_active_org_id(user):
         raise HTTPException(status_code=404, detail="Glossary not found")
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(obj, k, v)
@@ -199,7 +215,7 @@ async def delete_glossary(
     db: AsyncSession = Depends(get_session),
 ):
     obj = await db.get(Glossary, glossary_id)
-    if not obj or obj.org_id != user.org_id:
+    if not obj or obj.org_id != get_active_org_id(user):
         raise HTTPException(status_code=404, detail="Glossary not found")
     await db.delete(obj)
     await db.commit()
@@ -210,24 +226,51 @@ async def delete_glossary(
 @router.get("/{glossary_id}/terms", response_model=List[GlossaryTermOut])
 async def list_terms(
     glossary_id: uuid.UUID,
-    search: Optional[str] = Query(None),
-    skip: int = 0,
-    limit: int = 50,
+    search: Optional[str] = Query(None, description="Search by name or display_name."),
+    is_active: Optional[bool] = Query(None, description="Filter by active/inactive."),
+    mutually_exclusive: Optional[bool] = Query(None, description="Filter by mutually_exclusive flag."),
+    created_by: Optional[uuid.UUID] = Query(None, description="Filter by creator user ID."),
+    # Relational filters
+    owner_id: Optional[uuid.UUID] = Query(None, description="Filter terms owned by this user (M2M)."),
+    reviewer_id: Optional[uuid.UUID] = Query(None, description="Filter terms reviewed by this user (M2M)."),
+    liked_by: Optional[uuid.UUID] = Query(None, description="Filter terms liked by this user (M2M)."),
+    related_term_id: Optional[uuid.UUID] = Query(None, description="Filter terms that are related to this term ID (M2M)."),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
     stmt = (
         select(GlossaryTerm)
-        .where(GlossaryTerm.glossary_id == glossary_id, GlossaryTerm.org_id == user.org_id)
+        .where(GlossaryTerm.glossary_id == glossary_id, GlossaryTerm.org_id == get_active_org_id(user))
         .options(
             selectinload(GlossaryTerm.owners),
             selectinload(GlossaryTerm.reviewers),
-            selectinload(GlossaryTerm.related_terms),
+            # Load nested related_terms + their owners/reviewers/related_terms to avoid MissingGreenlet
+            selectinload(GlossaryTerm.related_terms).selectinload(GlossaryTerm.owners),
+            selectinload(GlossaryTerm.related_terms).selectinload(GlossaryTerm.reviewers),
+            selectinload(GlossaryTerm.related_terms).selectinload(GlossaryTerm.related_terms),
         )
+        .distinct()
     )
     if search:
-        stmt = stmt.where(GlossaryTerm.name.ilike(f"%{search}%"))
-    stmt = stmt.offset(skip).limit(limit)
+        stmt = stmt.where(GlossaryTerm.name.ilike(f"%{search}%") | GlossaryTerm.display_name.ilike(f"%{search}%"))
+    if is_active is not None:
+        stmt = stmt.where(GlossaryTerm.is_active == is_active)
+    if mutually_exclusive is not None:
+        stmt = stmt.where(GlossaryTerm.mutually_exclusive == mutually_exclusive)
+    if created_by:
+        stmt = stmt.where(GlossaryTerm.created_by == created_by)
+    # Relational JOIN filters
+    if owner_id is not None:
+        stmt = stmt.join(glossary_term_owners, glossary_term_owners.c.term_id == GlossaryTerm.id).where(glossary_term_owners.c.user_id == owner_id)
+    if reviewer_id is not None:
+        stmt = stmt.join(glossary_term_reviewers, glossary_term_reviewers.c.term_id == GlossaryTerm.id).where(glossary_term_reviewers.c.user_id == reviewer_id)
+    if liked_by is not None:
+        stmt = stmt.join(glossary_term_likes, glossary_term_likes.c.term_id == GlossaryTerm.id).where(glossary_term_likes.c.user_id == liked_by)
+    if related_term_id is not None:
+        stmt = stmt.join(glossary_term_related, glossary_term_related.c.term_id == GlossaryTerm.id).where(glossary_term_related.c.related_term_id == related_term_id)
+    stmt = stmt.order_by(GlossaryTerm.name).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -240,11 +283,11 @@ async def create_term(
     db: AsyncSession = Depends(get_session),
 ):
     glossary = await db.get(Glossary, glossary_id)
-    if not glossary or glossary.org_id != user.org_id:
+    if not glossary or glossary.org_id != get_active_org_id(user):
         raise HTTPException(status_code=404, detail="Glossary not found")
     payload = body.model_dump(exclude={"owner_ids", "reviewer_ids", "related_term_ids"})
     term = GlossaryTerm(
-        glossary_id=glossary_id, org_id=user.org_id, created_by=user.id, **payload
+        glossary_id=glossary_id, org_id=get_active_org_id(user), created_by=user.id, **payload
     )
     db.add(term)
     await db.flush([term])
@@ -255,7 +298,7 @@ async def create_term(
     if body.related_term_ids:
         await _sync_m2m(db, glossary_term_related, "term_id", term.id, "related_term_id", body.related_term_ids)
     await emit(db, entity_type="glossary_term", action="created", entity_id=term.id,
-               org_id=user.org_id, actor_id=user.id, details={"name": term.name, "glossary_id": str(glossary_id)})
+               org_id=get_active_org_id(user), actor_id=user.id, details={"name": term.name, "glossary_id": str(glossary_id)})
     await db.commit()
     await db.refresh(term)
     return term
@@ -268,7 +311,7 @@ async def get_term(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    term = await _get_term(db, term_id, user.org_id)
+    term = await _get_term(db, term_id, get_active_org_id(user))
     if not term or term.glossary_id != glossary_id:
         raise HTTPException(status_code=404, detail="Term not found")
     return term
@@ -282,7 +325,7 @@ async def update_term(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    term = await _get_term(db, term_id, user.org_id)
+    term = await _get_term(db, term_id, get_active_org_id(user))
     if not term or term.glossary_id != glossary_id:
         raise HTTPException(status_code=404, detail="Term not found")
     data = body.model_dump(exclude_unset=True)
@@ -298,10 +341,11 @@ async def update_term(
     if related_term_ids is not None:
         await _sync_m2m(db, glossary_term_related, "term_id", term.id, "related_term_id", related_term_ids)
     await emit(db, entity_type="glossary_term", action="updated", entity_id=term.id,
-               org_id=user.org_id, actor_id=user.id)
+               org_id=get_active_org_id(user), actor_id=user.id)
     await db.commit()
-    await db.refresh(term)
-    return term
+    # Re-fetch with eager loads to avoid lazy-load greenlet errors on related_terms
+    refreshed = await _get_term(db, term.id, get_active_org_id(user))
+    return refreshed
 
 
 @router.delete("/{glossary_id}/terms/{term_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -311,7 +355,7 @@ async def delete_term(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    term = await _get_term(db, term_id, user.org_id)
+    term = await _get_term(db, term_id, get_active_org_id(user))
     if not term or term.glossary_id != glossary_id:
         raise HTTPException(status_code=404, detail="Term not found")
     await db.delete(term)
@@ -327,7 +371,7 @@ async def like_term(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    term = await _get_term(db, term_id, user.org_id)
+    term = await _get_term(db, term_id, get_active_org_id(user))
     if not term or term.glossary_id != glossary_id:
         raise HTTPException(status_code=404, detail="Term not found")
     existing = await db.execute(
@@ -350,7 +394,7 @@ async def unlike_term(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    term = await _get_term(db, term_id, user.org_id)
+    term = await _get_term(db, term_id, get_active_org_id(user))
     if not term or term.glossary_id != glossary_id:
         raise HTTPException(status_code=404, detail="Term not found")
     result = await db.execute(
@@ -374,10 +418,10 @@ async def export_glossary(
     db: AsyncSession = Depends(get_session),
 ):
     glossary = await db.get(Glossary, glossary_id)
-    if not glossary or glossary.org_id != user.org_id:
+    if not glossary or glossary.org_id != get_active_org_id(user):
         raise HTTPException(status_code=404, detail="Glossary not found")
     stmt = select(GlossaryTerm).where(
-        GlossaryTerm.glossary_id == glossary_id, GlossaryTerm.org_id == user.org_id
+        GlossaryTerm.glossary_id == glossary_id, GlossaryTerm.org_id == get_active_org_id(user)
     )
     result = await db.execute(stmt)
     terms = result.scalars().all()
@@ -410,7 +454,7 @@ async def import_glossary(
     db: AsyncSession = Depends(get_session),
 ):
     glossary = await db.get(Glossary, glossary_id)
-    if not glossary or glossary.org_id != user.org_id:
+    if not glossary or glossary.org_id != get_active_org_id(user):
         raise HTTPException(status_code=404, detail="Glossary not found")
     content = await file.read()
     reader = csv.DictReader(io.StringIO(content.decode("utf-8")))
@@ -419,7 +463,7 @@ async def import_glossary(
         synonyms = [s.strip() for s in row.get("synonyms", "").split(",") if s.strip()]
         term = GlossaryTerm(
             glossary_id=glossary_id,
-            org_id=user.org_id,
+            org_id=get_active_org_id(user),
             created_by=user.id,
             name=row.get("name", "").strip(),
             display_name=row.get("display_name", "").strip() or None,

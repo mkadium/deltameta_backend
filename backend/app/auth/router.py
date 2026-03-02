@@ -249,11 +249,21 @@ async def refresh_token(
 ) -> TokenResponse:
     active_org_id = get_active_org_id(current_user)
     auth_config = await get_auth_config_for_org(str(active_org_id), db)
+    # Re-check org admin status from DB to avoid stale JWT claim
+    membership = await db.execute(
+        select(user_organizations).where(
+            user_organizations.c.user_id == current_user.id,
+            user_organizations.c.org_id == active_org_id,
+            user_organizations.c.is_active == True,
+        )
+    )
+    row = membership.mappings().first()
+    is_admin_current = bool(row["is_org_admin"]) if row else current_user.is_admin
     token = create_access_token(
         user_id=str(current_user.id),
         org_id=str(active_org_id),
         expiry_minutes=auth_config.jwt_expiry_minutes,
-        is_admin=current_user.is_admin,
+        is_admin=is_admin_current,
         is_global_admin=current_user.is_global_admin,
     )
     return TokenResponse(
@@ -351,6 +361,7 @@ async def get_my_orgs(
         .where(
             user_organizations.c.user_id == current_user.id,
             user_organizations.c.is_active == True,
+            Organization.is_active == True,
         )
         .order_by(Organization.name)
     )
@@ -472,7 +483,7 @@ async def get_my_permissions(
     perms = await build_permissions_map(user, db)
     return {
         "user_id": str(user.id),
-        "org_id": str(user.org_id),
+        "org_id": str(get_active_org_id(user)),
         "is_admin": user.is_admin,
         "is_global_admin": user.is_global_admin,
         "permissions": perms,

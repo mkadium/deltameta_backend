@@ -115,6 +115,7 @@ async def list_my_orgs(
         .where(
             user_organizations.c.user_id == current_user.id,
             user_organizations.c.is_active == True,
+            Organization.is_active == True,
         )
         .order_by(Organization.name)
     )
@@ -258,23 +259,48 @@ async def delete_org(
 @router.get("/orgs/{org_id}/members", response_model=List[UserResponse], tags=["Organization"], summary="List members of an organization")
 async def list_org_members(
     org_id: uuid.UUID,
+    search: Optional[str] = Query(None, description="Search by name or email."),
+    is_active: Optional[bool] = Query(None, description="Filter by active/inactive users."),
+    is_org_admin: Optional[bool] = Query(None, description="Filter by org-admin status."),
+    domain_id: Optional[uuid.UUID] = Query(None, description="Filter members in a specific subject area."),
+    # Relational filters
+    team_id: Optional[uuid.UUID] = Query(None, description="Filter members who belong to this team."),
+    role_id: Optional[uuid.UUID] = Query(None, description="Filter members who have this role assigned."),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     current_user=Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
     await _assert_user_in_org(current_user.id, org_id, session)
-    result = await session.execute(
+    from app.auth.models import user_roles
+    q = (
         select(User)
         .join(user_organizations, user_organizations.c.user_id == User.id)
-        .where(
-            user_organizations.c.org_id == org_id,
-            user_organizations.c.is_active == True,
-        )
+        .where(user_organizations.c.org_id == org_id)
         .options(selectinload(User.teams), selectinload(User.roles))
-        .offset(skip)
-        .limit(limit)
+        .distinct()
     )
+    if is_active is not None:
+        q = q.where(user_organizations.c.is_active == is_active)
+    else:
+        q = q.where(user_organizations.c.is_active == True)
+    if is_org_admin is not None:
+        q = q.where(user_organizations.c.is_org_admin == is_org_admin)
+    if domain_id is not None:
+        q = q.where(User.domain_id == domain_id)
+    if search:
+        q = q.where(
+            User.display_name.ilike(f"%{search}%") |
+            User.email.ilike(f"%{search}%") |
+            User.username.ilike(f"%{search}%")
+        )
+    # Relational JOIN filters
+    if team_id is not None:
+        q = q.join(user_teams, user_teams.c.user_id == User.id).where(user_teams.c.team_id == team_id)
+    if role_id is not None:
+        q = q.join(user_roles, user_roles.c.user_id == User.id).where(user_roles.c.role_id == role_id)
+    q = q.order_by(User.display_name).offset(skip).limit(limit)
+    result = await session.execute(q)
     return result.scalars().all()
 
 
@@ -500,7 +526,7 @@ async def update_org_preferences(
 
 
 @router.get("/org/preferences/stats", response_model=OrgStatsResponse, tags=["Organization"], summary="Get aggregate stats for active org")
-async def get_org_stats(
+async def get_active_org_stats(
     current_user=Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -542,10 +568,11 @@ async def get_org_stats(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    """Overview stats for an organization."""
+    """Overview stats for an organization (caller must be a member)."""
     org = await db.get(Organization, org_id)
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
+    await _assert_user_in_org(user.id, org_id, db)
 
     user_count = (await db.execute(
         select(func.count()).where(User.org_id == org_id, User.is_active == True)
@@ -575,7 +602,8 @@ async def get_org_teams_grouped(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    """Return teams grouped by team_type for an org landing page."""
+    """Return teams grouped by team_type for an org landing page (caller must be a member)."""
+    await _assert_user_in_org(user.id, org_id, db)
     stmt = select(Team).where(Team.org_id == org_id, Team.is_active == True).order_by(Team.team_type, Team.name)
     result = await db.execute(stmt)
     teams = result.scalars().all()
@@ -600,6 +628,7 @@ async def list_org_roles(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
+    await _assert_user_in_org(user.id, org_id, db)
     rows = await db.execute(select(org_roles).where(org_roles.c.org_id == org_id))
     role_ids = [r["role_id"] for r in rows.mappings()]
     if not role_ids:
@@ -616,6 +645,10 @@ async def assign_role_to_org(
     user: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ):
+    await _assert_org_admin(user.id, org_id, db)
+    role = await db.execute(select(Role).where(Role.id == role_id, Role.org_id == org_id))
+    if not role.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Role not found in this organization")
     await db.execute(
         pg_insert(org_roles).values(org_id=org_id, role_id=role_id).on_conflict_do_nothing()
     )
@@ -630,6 +663,7 @@ async def remove_role_from_org(
     user: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ):
+    await _assert_org_admin(user.id, org_id, db)
     await db.execute(
         org_roles.delete().where(org_roles.c.org_id == org_id, org_roles.c.role_id == role_id)
     )
@@ -642,6 +676,7 @@ async def list_org_policies(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
+    await _assert_user_in_org(user.id, org_id, db)
     rows = await db.execute(select(org_policies).where(org_policies.c.org_id == org_id))
     policy_ids = [r["policy_id"] for r in rows.mappings()]
     if not policy_ids:
@@ -658,6 +693,10 @@ async def assign_policy_to_org(
     user: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ):
+    await _assert_org_admin(user.id, org_id, db)
+    policy = await db.execute(select(Policy).where(Policy.id == policy_id, Policy.org_id == org_id))
+    if not policy.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Policy not found in this organization")
     await db.execute(
         pg_insert(org_policies).values(org_id=org_id, policy_id=policy_id).on_conflict_do_nothing()
     )
@@ -672,6 +711,7 @@ async def remove_policy_from_org(
     user: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ):
+    await _assert_org_admin(user.id, org_id, db)
     await db.execute(
         org_policies.delete().where(org_policies.c.org_id == org_id, org_policies.c.policy_id == policy_id)
     )

@@ -25,7 +25,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db import get_session
 from app.auth.dependencies import get_active_org_id, require_org_admin
-from app.auth.models import Domain, Role, Team, User, user_organizations
+from app.auth.models import Domain, Role, Team, User, user_organizations, user_teams, user_roles, user_policies
 from app.auth.service import hash_password
 from sqlalchemy import insert
 
@@ -222,25 +222,30 @@ async def _resolve_domains(domain_ids: List[uuid.UUID], org_id: uuid.UUID, db: A
     return list(found)
 
 
-async def _get_user_domains(user_id: uuid.UUID, db: AsyncSession) -> List[Domain]:
-    """A user can be primary in one domain (domain_id) or linked via subject_area relationship.
-    Here we query all domains where user.domain_id matches OR domains that own the user."""
-    result = await db.execute(
-        select(Domain).where(Domain.owner_id == user_id)
-    )
-    domains = result.scalars().all()
-    return list(domains)
+async def _get_user_domains(user_id: uuid.UUID, db: AsyncSession, org_id: uuid.UUID | None = None) -> List[Domain]:
+    """Query domains where user is owner, optionally scoped to an org."""
+    stmt = select(Domain).where(Domain.owner_id == user_id)
+    if org_id is not None:
+        stmt = stmt.where(Domain.org_id == org_id)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/users", response_model=List[AdminUserOut])
 async def list_users(
-    search: Optional[str] = Query(None, description="Search by email, display_name, or username"),
+    search: Optional[str] = Query(None, description="Search by email, display_name, or username."),
     is_active: Optional[bool] = Query(None),
     is_admin: Optional[bool] = Query(None),
-    skip: int = 0,
-    limit: int = 50,
+    is_verified: Optional[bool] = Query(None, description="Filter by email-verified status."),
+    # Relational filters
+    team_id: Optional[uuid.UUID] = Query(None, description="Filter users who belong to this team."),
+    role_id: Optional[uuid.UUID] = Query(None, description="Filter users who have this role assigned."),
+    policy_id: Optional[uuid.UUID] = Query(None, description="Filter users who have this policy directly assigned."),
+    domain_id: Optional[uuid.UUID] = Query(None, description="Filter users whose primary subject area is this domain."),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     admin: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ):
@@ -249,23 +254,35 @@ async def list_users(
         select(User)
         .where(User.org_id == active_org)
         .options(selectinload(User.teams), selectinload(User.roles))
+        .distinct()
     )
     if is_active is not None:
         stmt = stmt.where(User.is_active == is_active)
     if is_admin is not None:
         stmt = stmt.where(User.is_admin == is_admin)
+    if is_verified is not None:
+        stmt = stmt.where(User.is_verified == is_verified)
     if search:
         stmt = stmt.where(
             User.display_name.ilike(f"%{search}%") |
             User.email.ilike(f"%{search}%") |
             User.username.ilike(f"%{search}%")
         )
-    stmt = stmt.offset(skip).limit(limit)
+    # Relational JOIN filters
+    if team_id is not None:
+        stmt = stmt.join(user_teams, user_teams.c.user_id == User.id).where(user_teams.c.team_id == team_id)
+    if role_id is not None:
+        stmt = stmt.join(user_roles, user_roles.c.user_id == User.id).where(user_roles.c.role_id == role_id)
+    if policy_id is not None:
+        stmt = stmt.join(user_policies, user_policies.c.user_id == User.id).where(user_policies.c.policy_id == policy_id)
+    if domain_id is not None:
+        stmt = stmt.where(User.domain_id == domain_id)
+    stmt = stmt.order_by(User.display_name).offset(skip).limit(limit)
     result = await db.execute(stmt)
     users = result.scalars().all()
     out = []
     for u in users:
-        domains = await _get_user_domains(u.id, db)
+        domains = await _get_user_domains(u.id, db, org_id=active_org)
         out.append(_user_to_out(u, domains))
     return out
 
@@ -361,7 +378,7 @@ async def get_user(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    domains = await _get_user_domains(user.id, db)
+    domains = await _get_user_domains(user.id, db, org_id=active_org)
     return _user_to_out(user, domains)
 
 
@@ -389,6 +406,15 @@ async def update_user(
         user.description = body.description
     if body.is_admin is not None:
         user.is_admin = body.is_admin
+        # Keep user_organizations.is_org_admin in sync with user.is_admin
+        await db.execute(
+            user_organizations.update()
+            .where(
+                user_organizations.c.user_id == user.id,
+                user_organizations.c.org_id == active_org,
+            )
+            .values(is_org_admin=body.is_admin)
+        )
     if body.is_active is not None:
         user.is_active = body.is_active
 
@@ -402,7 +428,7 @@ async def update_user(
         domains = await _resolve_domains(body.domain_ids, active_org, db)
         user.domain_id = domains[0].id if domains else None
     else:
-        domains = await _get_user_domains(user.id, db)
+        domains = await _get_user_domains(user.id, db, org_id=active_org)
 
     await db.commit()
     user = await _load_user_with_relations(user.id, db)
