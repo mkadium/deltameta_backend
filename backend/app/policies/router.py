@@ -20,7 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.auth.models import Policy
+from app.auth.models import Policy, User, user_policies
 from app.auth.schemas import (
     MessageResponse,
     PolicyCreate,
@@ -29,6 +29,8 @@ from app.auth.schemas import (
 )
 from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
 from app.resources.service import validate_resource_key, get_operations_for_key
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix="/policies", tags=["Policies"])
 
@@ -192,3 +194,118 @@ async def _get_policy_or_404(policy_id: uuid.UUID, org_id: uuid.UUID, session: A
     if not policy:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy not found")
     return policy
+
+
+async def _get_user_in_org(user_id: uuid.UUID, org_id: uuid.UUID, session: AsyncSession) -> User:
+    result = await session.execute(
+        select(User)
+        .where(User.id == user_id, User.org_id == org_id)
+        .options(selectinload(User.policies))
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found in this organization")
+    return user
+
+
+# ---------------------------------------------------------------------------
+# User ↔ Policy management
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/{policy_id}/users",
+    response_model=List[dict],
+    summary="List users who have this policy directly assigned",
+)
+async def list_policy_users(
+    policy_id: uuid.UUID,
+    current_user=Depends(require_org_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    policy = await _get_policy_or_404(policy_id, get_active_org_id(current_user), session)
+    rows = await session.execute(
+        select(user_policies).where(user_policies.c.policy_id == policy.id)
+    )
+    user_ids = [r["user_id"] for r in rows.mappings()]
+    if not user_ids:
+        return []
+    result = await session.execute(
+        select(User).where(User.id.in_(user_ids))
+    )
+    users = result.scalars().all()
+    return [{"id": str(u.id), "name": u.name, "email": u.email, "username": u.username} for u in users]
+
+
+@router.post(
+    "/{policy_id}/assign/{user_id}",
+    response_model=MessageResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Assign a policy directly to a user",
+)
+async def assign_policy_to_user(
+    policy_id: uuid.UUID,
+    user_id: uuid.UUID,
+    current_user=Depends(require_org_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    policy = await _get_policy_or_404(policy_id, get_active_org_id(current_user), session)
+    user = await _get_user_in_org(user_id, get_active_org_id(current_user), session)
+
+    if any(p.id == policy_id for p in user.policies):
+        return MessageResponse(message="User already has this policy")
+
+    await session.execute(
+        pg_insert(user_policies)
+        .values(user_id=user_id, policy_id=policy_id)
+        .on_conflict_do_nothing()
+    )
+    await session.commit()
+    return MessageResponse(message=f"Policy '{policy.name}' assigned to user '{user.name}'")
+
+
+@router.delete(
+    "/{policy_id}/assign/{user_id}",
+    response_model=MessageResponse,
+    summary="Remove a directly-assigned policy from a user",
+)
+async def remove_policy_from_user(
+    policy_id: uuid.UUID,
+    user_id: uuid.UUID,
+    current_user=Depends(require_org_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    policy = await _get_policy_or_404(policy_id, get_active_org_id(current_user), session)
+    user = await _get_user_in_org(user_id, get_active_org_id(current_user), session)
+
+    if not any(p.id == policy_id for p in user.policies):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User does not have this policy directly assigned",
+        )
+
+    await session.execute(
+        user_policies.delete().where(
+            user_policies.c.user_id == user_id,
+            user_policies.c.policy_id == policy_id,
+        )
+    )
+    await session.commit()
+    return MessageResponse(message=f"Policy '{policy.name}' removed from user '{user.name}'")
+
+
+# ---------------------------------------------------------------------------
+# User-centric policy view
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/user/{user_id}",
+    response_model=List[PolicyResponse],
+    summary="List policies directly assigned to a user",
+)
+async def list_user_policies(
+    user_id: uuid.UUID,
+    current_user=Depends(require_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    user = await _get_user_in_org(user_id, get_active_org_id(current_user), session)
+    return user.policies
