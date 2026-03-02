@@ -110,19 +110,19 @@ async def _get_org_id(client: AsyncClient, headers: dict) -> str:
 
 
 # ===========================================================================
-# DOMAIN TESTS
+# SUBJECT AREA TESTS (formerly /domains — now canonical route is /subject-areas)
 # ===========================================================================
 
 class TestDomains:
     async def test_list_domains_empty(self, client: AsyncClient):
         headers = await _register_and_login(client, f"domlist_{uuid.uuid4().hex[:6]}")
-        resp = await client.get("/domains", headers=headers)
+        resp = await client.get("/subject-areas", headers=headers)
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
     async def test_create_domain(self, client: AsyncClient):
         headers = await _register_and_login(client, f"domcr_{uuid.uuid4().hex[:6]}")
-        resp = await client.post("/domains", headers=headers, json={
+        resp = await client.post("/subject-areas", headers=headers, json={
             "name": "Engineering",
             "description": "Engineering domain",
             "domain_type": "Technical",
@@ -135,38 +135,38 @@ class TestDomains:
     async def test_create_domain_duplicate_name(self, client: AsyncClient):
         headers = await _register_and_login(client, f"domdup_{uuid.uuid4().hex[:6]}")
         payload = {"name": "Finance"}
-        await client.post("/domains", headers=headers, json=payload)
-        resp = await client.post("/domains", headers=headers, json=payload)
+        await client.post("/subject-areas", headers=headers, json=payload)
+        resp = await client.post("/subject-areas", headers=headers, json=payload)
         assert resp.status_code == 409
 
     async def test_get_domain(self, client: AsyncClient):
         headers = await _register_and_login(client, f"domget_{uuid.uuid4().hex[:6]}")
-        create_resp = await client.post("/domains", headers=headers, json={"name": "Sales"})
+        create_resp = await client.post("/subject-areas", headers=headers, json={"name": "Sales"})
         domain_id = create_resp.json()["id"]
-        resp = await client.get(f"/domains/{domain_id}", headers=headers)
+        resp = await client.get(f"/subject-areas/{domain_id}", headers=headers)
         assert resp.status_code == 200
         assert resp.json()["id"] == domain_id
 
     async def test_update_domain(self, client: AsyncClient):
         headers = await _register_and_login(client, f"domupd_{uuid.uuid4().hex[:6]}")
-        create_resp = await client.post("/domains", headers=headers, json={"name": "HR"})
+        create_resp = await client.post("/subject-areas", headers=headers, json={"name": "HR"})
         domain_id = create_resp.json()["id"]
-        resp = await client.put(f"/domains/{domain_id}", headers=headers, json={"description": "Human Resources"})
+        resp = await client.put(f"/subject-areas/{domain_id}", headers=headers, json={"description": "Human Resources"})
         assert resp.status_code == 200
         assert resp.json()["description"] == "Human Resources"
 
     async def test_delete_domain(self, client: AsyncClient):
         headers = await _register_and_login(client, f"domdel_{uuid.uuid4().hex[:6]}")
-        create_resp = await client.post("/domains", headers=headers, json={"name": "Marketing"})
+        create_resp = await client.post("/subject-areas", headers=headers, json={"name": "Marketing"})
         domain_id = create_resp.json()["id"]
-        resp = await client.delete(f"/domains/{domain_id}", headers=headers)
-        assert resp.status_code == 200
-        get_resp = await client.get(f"/domains/{domain_id}", headers=headers)
+        resp = await client.delete(f"/subject-areas/{domain_id}", headers=headers)
+        assert resp.status_code == 204
+        get_resp = await client.get(f"/subject-areas/{domain_id}", headers=headers)
         assert get_resp.status_code == 404
 
     async def test_get_nonexistent_domain_returns_404(self, client: AsyncClient):
         headers = await _register_and_login(client, f"dom404_{uuid.uuid4().hex[:6]}")
-        resp = await client.get(f"/domains/{uuid.uuid4()}", headers=headers)
+        resp = await client.get(f"/subject-areas/{uuid.uuid4()}", headers=headers)
         assert resp.status_code == 404
 
 

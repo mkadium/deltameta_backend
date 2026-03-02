@@ -8,9 +8,11 @@ Subscriptions are namespaced by org_id (multi-tenant safe).
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,13 +21,21 @@ from app.auth.models import Subscription
 from app.auth.schemas import MessageResponse, SubscriptionCreate, SubscriptionResponse
 from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
 
+
+class SubscriptionUpdate(BaseModel):
+    notify_on_update: Optional[bool] = None
+
 router = APIRouter(prefix="/subscriptions", tags=["Subscriptions"])
 
 
 @router.get("", response_model=List[SubscriptionResponse], summary="List subscriptions for the current org")
 async def list_subscriptions(
-    resource_type: Optional[str] = Query(None, description="Filter by resource type"),
-    subscriber_user_id: Optional[uuid.UUID] = Query(None, description="Filter by subscriber user"),
+    resource_type: Optional[str] = Query(None, description="Filter by resource type."),
+    resource_id: Optional[uuid.UUID] = Query(None, description="Filter by the specific subscribed resource ID."),
+    subscriber_user_id: Optional[uuid.UUID] = Query(None, description="Filter by subscriber user ID."),
+    notify_on_update: Optional[bool] = Query(None, description="Filter by notification preference."),
+    subscribed_after: Optional[datetime] = Query(None, description="Filter subscriptions created after this datetime (ISO 8601)."),
+    subscribed_before: Optional[datetime] = Query(None, description="Filter subscriptions created before this datetime (ISO 8601)."),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     current_user=Depends(require_active_user),
@@ -34,8 +44,16 @@ async def list_subscriptions(
     q = select(Subscription).where(Subscription.org_id == get_active_org_id(current_user))
     if resource_type:
         q = q.where(Subscription.resource_type == resource_type)
+    if resource_id:
+        q = q.where(Subscription.resource_id == resource_id)
     if subscriber_user_id:
         q = q.where(Subscription.user_id == subscriber_user_id)
+    if notify_on_update is not None:
+        q = q.where(Subscription.notify_on_update == notify_on_update)
+    if subscribed_after is not None:
+        q = q.where(Subscription.subscribed_at >= subscribed_after)
+    if subscribed_before is not None:
+        q = q.where(Subscription.subscribed_at <= subscribed_before)
     q = q.order_by(Subscription.subscribed_at.desc()).offset(skip).limit(limit)
     result = await session.execute(q)
     subs = result.scalars().all()
@@ -82,6 +100,22 @@ async def create_subscription(
     return _to_response(sub)
 
 
+@router.get("/resource/{resource_type}/{resource_id}", response_model=List[SubscriptionResponse], summary="List all subscribers to a specific resource")
+async def list_resource_subscribers(
+    resource_type: str,
+    resource_id: uuid.UUID,
+    current_user=Depends(require_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    q = select(Subscription).where(
+        Subscription.org_id == get_active_org_id(current_user),
+        Subscription.resource_type == resource_type,
+        Subscription.resource_id == resource_id,
+    )
+    result = await session.execute(q)
+    return [_to_response(s) for s in result.scalars().all()]
+
+
 @router.get("/{subscription_id}", response_model=SubscriptionResponse, summary="Get a subscription by ID")
 async def get_subscription(
     subscription_id: uuid.UUID,
@@ -89,6 +123,23 @@ async def get_subscription(
     session: AsyncSession = Depends(get_session),
 ):
     sub = await _get_sub_or_404(subscription_id, get_active_org_id(current_user), session)
+    return _to_response(sub)
+
+
+@router.patch("/{subscription_id}", response_model=SubscriptionResponse, summary="Update subscription notification preference")
+async def update_subscription(
+    subscription_id: uuid.UUID,
+    body: SubscriptionUpdate,
+    current_user=Depends(require_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    sub = await _get_sub_or_404(subscription_id, get_active_org_id(current_user), session)
+    if sub.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only update your own subscriptions")
+    if body.notify_on_update is not None:
+        sub.notify_on_update = body.notify_on_update
+    await session.commit()
+    await session.refresh(sub)
     return _to_response(sub)
 
 

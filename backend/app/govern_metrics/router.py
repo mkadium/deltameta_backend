@@ -1,6 +1,7 @@
 """Govern Metrics — catalog and manage standardized business metrics."""
 from __future__ import annotations
 import uuid
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -9,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.auth.dependencies import require_active_user
+from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
 from app.auth.models import User
 from app.govern.models import GovernMetric, govern_metric_owners
 from app.govern.activity import emit
@@ -64,6 +65,9 @@ class MetricOut(BaseModel):
     measurement_unit: Optional[str]
     code: Optional[str]
     is_active: bool
+    created_by: Optional[uuid.UUID]
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
     owners: List[UserRef] = []
 
     class Config:
@@ -82,19 +86,36 @@ async def _sync_owners(db, metric_id, ids):
 
 @router.get("", response_model=List[MetricOut])
 async def list_metrics(
-    search: Optional[str] = Query(None),
-    metric_type: Optional[str] = Query(None),
-    skip: int = 0,
-    limit: int = 50,
+    search: Optional[str] = Query(None, description="Search by name or display_name."),
+    metric_type: Optional[str] = Query(None, description="Filter by metric_type."),
+    granularity: Optional[str] = Query(None, description="Filter by granularity (daily/weekly/monthly/etc.)."),
+    language: Optional[str] = Query(None, description="Filter by language (SQL/Python/etc.)."),
+    is_active: Optional[bool] = Query(None, description="Filter by active/inactive."),
+    created_by: Optional[uuid.UUID] = Query(None, description="Filter by creator user ID."),
+    # Relational filters
+    owner_id: Optional[uuid.UUID] = Query(None, description="Filter metrics owned by this user (M2M)."),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    stmt = select(GovernMetric).where(GovernMetric.org_id == user.org_id)
+    stmt = select(GovernMetric).where(GovernMetric.org_id == get_active_org_id(user)).distinct()
     if search:
-        stmt = stmt.where(GovernMetric.name.ilike(f"%{search}%"))
+        stmt = stmt.where(GovernMetric.name.ilike(f"%{search}%") | GovernMetric.display_name.ilike(f"%{search}%"))
     if metric_type:
         stmt = stmt.where(GovernMetric.metric_type == metric_type)
-    stmt = stmt.offset(skip).limit(limit)
+    if granularity:
+        stmt = stmt.where(GovernMetric.granularity == granularity)
+    if language:
+        stmt = stmt.where(GovernMetric.language == language)
+    if is_active is not None:
+        stmt = stmt.where(GovernMetric.is_active == is_active)
+    if created_by:
+        stmt = stmt.where(GovernMetric.created_by == created_by)
+    # Relational JOIN filter
+    if owner_id is not None:
+        stmt = stmt.join(govern_metric_owners, govern_metric_owners.c.metric_id == GovernMetric.id).where(govern_metric_owners.c.user_id == owner_id)
+    stmt = stmt.order_by(GovernMetric.name).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -106,13 +127,13 @@ async def create_metric(
     db: AsyncSession = Depends(get_session),
 ):
     payload = body.model_dump(exclude={"owner_ids"})
-    obj = GovernMetric(org_id=user.org_id, created_by=user.id, **payload)
+    obj = GovernMetric(org_id=get_active_org_id(user), created_by=user.id, **payload)
     db.add(obj)
     await db.flush([obj])
     if body.owner_ids:
         await _sync_owners(db, obj.id, body.owner_ids)
     await emit(db, entity_type="govern_metric", action="created", entity_id=obj.id,
-               org_id=user.org_id, actor_id=user.id, details={"name": obj.name})
+               org_id=get_active_org_id(user), actor_id=user.id, details={"name": obj.name})
     await db.commit()
     await db.refresh(obj)
     return obj
@@ -125,7 +146,7 @@ async def get_metric(
     db: AsyncSession = Depends(get_session),
 ):
     obj = await db.get(GovernMetric, metric_id)
-    if not obj or obj.org_id != user.org_id:
+    if not obj or obj.org_id != get_active_org_id(user):
         raise HTTPException(status_code=404, detail="Metric not found")
     return obj
 
@@ -138,7 +159,7 @@ async def update_metric(
     db: AsyncSession = Depends(get_session),
 ):
     obj = await db.get(GovernMetric, metric_id)
-    if not obj or obj.org_id != user.org_id:
+    if not obj or obj.org_id != get_active_org_id(user):
         raise HTTPException(status_code=404, detail="Metric not found")
     data = body.model_dump(exclude_unset=True)
     owner_ids = data.pop("owner_ids", None)
@@ -158,7 +179,7 @@ async def delete_metric(
     db: AsyncSession = Depends(get_session),
 ):
     obj = await db.get(GovernMetric, metric_id)
-    if not obj or obj.org_id != user.org_id:
+    if not obj or obj.org_id != get_active_org_id(user):
         raise HTTPException(status_code=404, detail="Metric not found")
     await db.delete(obj)
     await db.commit()

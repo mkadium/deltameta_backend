@@ -20,7 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.auth.models import Policy, User, user_policies
+from app.auth.models import Policy, User, user_policies, role_policies
 from app.auth.schemas import (
     MessageResponse,
     PolicyCreate,
@@ -31,6 +31,7 @@ from app.auth.dependencies import get_active_org_id, require_active_user, requir
 from app.resources.service import validate_resource_key, get_operations_for_key
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import selectinload
+from app.govern.models import team_policies, org_policies
 
 router = APIRouter(prefix="/policies", tags=["Policies"])
 
@@ -77,15 +78,32 @@ async def _validate_resource_and_operations(
 
 @router.get("", response_model=List[PolicyResponse], summary="List policies for the current org")
 async def list_policies(
-    resource: Optional[str] = Query(None, description="Filter by resource path"),
+    resource: Optional[str] = Query(None, description="Filter by resource path (substring match)."),
+    search: Optional[str] = Query(None, description="Search by policy name or rule_name."),
+    # Relational filters
+    role_id: Optional[uuid.UUID] = Query(None, description="Filter policies assigned to a specific role."),
+    team_id: Optional[uuid.UUID] = Query(None, description="Filter policies assigned to a specific team."),
+    user_id: Optional[uuid.UUID] = Query(None, description="Filter policies directly assigned to a specific user."),
+    org_id_filter: Optional[uuid.UUID] = Query(None, alias="org_id_assigned", description="Filter policies assigned to a specific org."),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     current_user=Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
-    q = select(Policy).where(Policy.org_id == get_active_org_id(current_user))
+    q = select(Policy).where(Policy.org_id == get_active_org_id(current_user)).distinct()
     if resource:
         q = q.where(Policy.resource.ilike(f"%{resource}%"))
+    if search:
+        q = q.where(Policy.name.ilike(f"%{search}%") | Policy.rule_name.ilike(f"%{search}%"))
+    # Relational JOIN filters
+    if role_id is not None:
+        q = q.join(role_policies, role_policies.c.policy_id == Policy.id).where(role_policies.c.role_id == role_id)
+    if team_id is not None:
+        q = q.join(team_policies, team_policies.c.policy_id == Policy.id).where(team_policies.c.team_id == team_id)
+    if user_id is not None:
+        q = q.join(user_policies, user_policies.c.policy_id == Policy.id).where(user_policies.c.user_id == user_id)
+    if org_id_filter is not None:
+        q = q.join(org_policies, org_policies.c.policy_id == Policy.id).where(org_policies.c.org_id == org_id_filter)
     q = q.order_by(Policy.name).offset(skip).limit(limit)
     result = await session.execute(q)
     return result.scalars().all()

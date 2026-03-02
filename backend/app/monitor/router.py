@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.auth.dependencies import require_active_user
+from app.auth.dependencies import get_active_org_id, require_active_user
 from app.auth.models import User
 from app.govern.models import ServiceEndpoint
 
@@ -61,7 +61,7 @@ async def list_services(
     db: AsyncSession = Depends(get_session),
 ):
     """List all configured service endpoints with their UI URLs."""
-    stmt = select(ServiceEndpoint).where(ServiceEndpoint.org_id == user.org_id)
+    stmt = select(ServiceEndpoint).where(ServiceEndpoint.org_id == get_active_org_id(user))
     result = await db.execute(stmt)
     endpoints = result.scalars().all()
     out = []
@@ -82,7 +82,7 @@ async def spark_ui(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    ep = await _get_endpoint(db, user.org_id, "spark_ui")
+    ep = await _get_endpoint(db, get_active_org_id(user), "spark_ui")
     if not ep:
         raise HTTPException(status_code=404, detail="Spark UI endpoint not configured")
     url = ep.base_url
@@ -99,7 +99,7 @@ async def spark_history(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    ep = await _get_endpoint(db, user.org_id, "spark_history")
+    ep = await _get_endpoint(db, get_active_org_id(user), "spark_history")
     if not ep:
         raise HTTPException(status_code=404, detail="Spark History Server endpoint not configured")
     url = f"{ep.base_url.rstrip('/')}/history/{app_id}" if app_id else ep.base_url
@@ -112,7 +112,7 @@ async def trino_ui(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    ep = await _get_endpoint(db, user.org_id, "trino_ui")
+    ep = await _get_endpoint(db, get_active_org_id(user), "trino_ui")
     if not ep:
         raise HTTPException(status_code=404, detail="Trino UI endpoint not configured")
     url = f"{ep.base_url.rstrip('/')}/ui/query.html?{query_id}" if query_id else ep.base_url
@@ -126,7 +126,7 @@ async def airflow_ui(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    ep = await _get_endpoint(db, user.org_id, "airflow_ui")
+    ep = await _get_endpoint(db, get_active_org_id(user), "airflow_ui")
     if not ep:
         raise HTTPException(status_code=404, detail="Airflow UI endpoint not configured")
     base = ep.base_url.rstrip("/")
@@ -145,7 +145,7 @@ async def rabbitmq_ui(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    ep = await _get_endpoint(db, user.org_id, "rabbitmq_ui")
+    ep = await _get_endpoint(db, get_active_org_id(user), "rabbitmq_ui")
     if not ep:
         raise HTTPException(status_code=404, detail="RabbitMQ UI endpoint not configured")
     url = f"{ep.base_url.rstrip('/')}/#/queues/%2F/{queue}" if queue else ep.base_url
@@ -158,7 +158,7 @@ async def celery_flower(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    ep = await _get_endpoint(db, user.org_id, "celery_flower")
+    ep = await _get_endpoint(db, get_active_org_id(user), "celery_flower")
     if not ep:
         raise HTTPException(status_code=404, detail="Celery Flower endpoint not configured")
     url = f"{ep.base_url.rstrip('/')}/task/{task_id}" if task_id else ep.base_url
@@ -170,7 +170,7 @@ async def jupyter_ui(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    ep = await _get_endpoint(db, user.org_id, "jupyter")
+    ep = await _get_endpoint(db, get_active_org_id(user), "jupyter")
     if not ep:
         raise HTTPException(status_code=404, detail="Jupyter endpoint not configured")
     return {"redirect_url": ep.base_url, "service": "jupyter"}
@@ -181,7 +181,7 @@ async def minio_console(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    ep = await _get_endpoint(db, user.org_id, "minio_console")
+    ep = await _get_endpoint(db, get_active_org_id(user), "minio_console")
     if not ep:
         raise HTTPException(status_code=404, detail="MinIO Console endpoint not configured")
     return {"redirect_url": ep.base_url, "service": "minio_console"}
@@ -194,7 +194,7 @@ async def services_health(
 ):
     """Ping all configured services and return health status."""
     stmt = select(ServiceEndpoint).where(
-        ServiceEndpoint.org_id == user.org_id,
+        ServiceEndpoint.org_id == get_active_org_id(user),
         ServiceEndpoint.is_active == True,
     )
     result = await db.execute(stmt)

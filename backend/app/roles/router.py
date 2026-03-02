@@ -14,9 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import get_session
-from app.auth.models import Policy, Role, User
+from app.auth.models import Policy, Role, User, user_roles
 from app.auth.schemas import MessageResponse, RoleCreate, RoleResponse, RoleUpdate, UserResponse
 from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
+from app.govern.models import team_roles, org_roles
 
 router = APIRouter(prefix="/roles", tags=["Roles"])
 
@@ -27,6 +28,12 @@ router = APIRouter(prefix="/roles", tags=["Roles"])
 
 @router.get("", response_model=List[RoleResponse], summary="List roles for the current org")
 async def list_roles(
+    search: Optional[str] = Query(None, description="Search by role name."),
+    is_system_role: Optional[bool] = Query(None, description="Filter system roles vs custom roles."),
+    # Relational filters
+    user_id: Optional[uuid.UUID] = Query(None, description="Filter roles assigned to a specific user."),
+    team_id: Optional[uuid.UUID] = Query(None, description="Filter roles assigned to a specific team."),
+    org_id_filter: Optional[uuid.UUID] = Query(None, alias="org_id_assigned", description="Filter roles assigned to a specific org."),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     current_user=Depends(require_active_user),
@@ -37,9 +44,20 @@ async def list_roles(
         .where(Role.org_id == get_active_org_id(current_user))
         .options(selectinload(Role.policies))
         .order_by(Role.name)
-        .offset(skip)
-        .limit(limit)
+        .distinct()
     )
+    if search:
+        q = q.where(Role.name.ilike(f"%{search}%"))
+    if is_system_role is not None:
+        q = q.where(Role.is_system_role == is_system_role)
+    # Relational JOIN filters
+    if user_id is not None:
+        q = q.join(user_roles, user_roles.c.role_id == Role.id).where(user_roles.c.user_id == user_id)
+    if team_id is not None:
+        q = q.join(team_roles, team_roles.c.role_id == Role.id).where(team_roles.c.team_id == team_id)
+    if org_id_filter is not None:
+        q = q.join(org_roles, org_roles.c.role_id == Role.id).where(org_roles.c.org_id == org_id_filter)
+    q = q.offset(skip).limit(limit)
     result = await session.execute(q)
     return result.scalars().all()
 
@@ -193,6 +211,72 @@ async def remove_role_from_user(
     user.roles.remove(role)
     await session.commit()
     return MessageResponse(message=f"Role removed from user '{user.name}'")
+
+
+# ---------------------------------------------------------------------------
+# Users by Role
+# ---------------------------------------------------------------------------
+
+@router.get("/{role_id}/users", response_model=List[UserResponse], summary="List users with this role")
+async def list_role_users(
+    role_id: uuid.UUID,
+    current_user=Depends(require_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """List all users in the active org who have been assigned this role."""
+    await _get_role_or_404(role_id, get_active_org_id(current_user), session)
+    result = await session.execute(
+        select(User)
+        .where(User.org_id == get_active_org_id(current_user))
+        .options(selectinload(User.roles))
+    )
+    users = result.scalars().all()
+    return [u for u in users if any(r.id == role_id for r in u.roles)]
+
+
+# ---------------------------------------------------------------------------
+# Role ↔ Policy (per-item add/remove)
+# ---------------------------------------------------------------------------
+
+@router.post("/{role_id}/policies/{policy_id}", response_model=MessageResponse, status_code=status.HTTP_201_CREATED, summary="Add a policy to a role")
+async def add_policy_to_role(
+    role_id: uuid.UUID,
+    policy_id: uuid.UUID,
+    current_user=Depends(require_org_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    active_org = get_active_org_id(current_user)
+    role = await _get_role_or_404(role_id, active_org, session, load_policies=True)
+    if role.is_system_role:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="System roles cannot be modified")
+    policy = (await session.execute(select(Policy).where(Policy.id == policy_id, Policy.org_id == active_org))).scalar_one_or_none()
+    if not policy:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy not found in this organization")
+    if any(p.id == policy_id for p in role.policies):
+        return MessageResponse(message="Policy already assigned to this role")
+    role.policies.append(policy)
+    role.updated_at = datetime.now(timezone.utc)
+    await session.commit()
+    return MessageResponse(message=f"Policy '{policy.name}' added to role '{role.name}'")
+
+
+@router.delete("/{role_id}/policies/{policy_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove a policy from a role")
+async def remove_policy_from_role(
+    role_id: uuid.UUID,
+    policy_id: uuid.UUID,
+    current_user=Depends(require_org_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    active_org = get_active_org_id(current_user)
+    role = await _get_role_or_404(role_id, active_org, session, load_policies=True)
+    if role.is_system_role:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="System roles cannot be modified")
+    policy = next((p for p in role.policies if p.id == policy_id), None)
+    if not policy:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy not assigned to this role")
+    role.policies.remove(policy)
+    role.updated_at = datetime.now(timezone.utc)
+    await session.commit()
 
 
 # ---------------------------------------------------------------------------
