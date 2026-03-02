@@ -14,12 +14,13 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-
 from app.db import get_session
-from app.auth.models import Team, User, user_teams
+from app.auth.models import Team, User, Role, Policy, user_teams
+from app.govern.models import team_roles, team_policies
 from app.auth.schemas import (
     MessageResponse,
     TeamCreate,
@@ -262,6 +263,120 @@ async def remove_member(
     team.members.remove(member)
     await session.commit()
     return MessageResponse(message=f"User removed from team '{team.name}'")
+
+
+# ---------------------------------------------------------------------------
+# Team Stats + Roles/Policies Management
+# ---------------------------------------------------------------------------
+
+@router.get("/{team_id}/stats")
+async def get_team_stats(
+    team_id: uuid.UUID,
+    current_user: User = Depends(require_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    team = await _get_team_or_404(team_id, current_user.org_id, session)
+    member_count = (await session.execute(
+        select(func.count()).select_from(user_teams).where(user_teams.c.team_id == team_id)
+    )).scalar_one()
+    sub_team_count = (await session.execute(
+        select(func.count()).where(Team.parent_team_id == team_id, Team.is_active == True)
+    )).scalar_one()
+    return {
+        "team_id": str(team_id),
+        "name": team.name,
+        "team_type": team.team_type,
+        "members": member_count,
+        "sub_teams": sub_team_count,
+    }
+
+
+@router.get("/{team_id}/roles")
+async def list_team_roles(
+    team_id: uuid.UUID,
+    current_user: User = Depends(require_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await _get_team_or_404(team_id, current_user.org_id, session)
+    rows = await session.execute(select(team_roles).where(team_roles.c.team_id == team_id))
+    role_ids = [r["role_id"] for r in rows.mappings()]
+    if not role_ids:
+        return []
+    result = await session.execute(select(Role).where(Role.id.in_(role_ids)))
+    roles = result.scalars().all()
+    return [{"id": str(r.id), "name": r.name, "description": r.description} for r in roles]
+
+
+@router.post("/{team_id}/roles/{role_id}", status_code=status.HTTP_201_CREATED)
+async def assign_role_to_team(
+    team_id: uuid.UUID,
+    role_id: uuid.UUID,
+    current_user: User = Depends(require_org_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    await _get_team_or_404(team_id, current_user.org_id, session)
+    await session.execute(
+        pg_insert(team_roles).values(team_id=team_id, role_id=role_id).on_conflict_do_nothing()
+    )
+    await session.commit()
+    return {"message": "Role assigned to team"}
+
+
+@router.delete("/{team_id}/roles/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_role_from_team(
+    team_id: uuid.UUID,
+    role_id: uuid.UUID,
+    current_user: User = Depends(require_org_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    await session.execute(
+        team_roles.delete().where(team_roles.c.team_id == team_id, team_roles.c.role_id == role_id)
+    )
+    await session.commit()
+
+
+@router.get("/{team_id}/policies")
+async def list_team_policies(
+    team_id: uuid.UUID,
+    current_user: User = Depends(require_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await _get_team_or_404(team_id, current_user.org_id, session)
+    rows = await session.execute(select(team_policies).where(team_policies.c.team_id == team_id))
+    policy_ids = [r["policy_id"] for r in rows.mappings()]
+    if not policy_ids:
+        return []
+    result = await session.execute(select(Policy).where(Policy.id.in_(policy_ids)))
+    policies = result.scalars().all()
+    return [{"id": str(p.id), "name": p.name, "resource": p.resource, "operations": p.operations} for p in policies]
+
+
+@router.post("/{team_id}/policies/{policy_id}", status_code=status.HTTP_201_CREATED)
+async def assign_policy_to_team(
+    team_id: uuid.UUID,
+    policy_id: uuid.UUID,
+    current_user: User = Depends(require_org_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    await _get_team_or_404(team_id, current_user.org_id, session)
+    await session.execute(
+        pg_insert(team_policies).values(team_id=team_id, policy_id=policy_id).on_conflict_do_nothing()
+    )
+    await session.commit()
+    return {"message": "Policy assigned to team"}
+
+
+@router.delete("/{team_id}/policies/{policy_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_policy_from_team(
+    team_id: uuid.UUID,
+    policy_id: uuid.UUID,
+    current_user: User = Depends(require_org_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    await session.execute(
+        team_policies.delete().where(team_policies.c.team_id == team_id, team_policies.c.policy_id == policy_id)
+    )
+    await session.commit()
 
 
 # ---------------------------------------------------------------------------

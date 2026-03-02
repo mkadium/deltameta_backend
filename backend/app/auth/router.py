@@ -452,3 +452,27 @@ async def update_auth_config(
     await db.commit()
     await db.refresh(cfg)
     return AuthConfigResponse.model_validate(cfg)
+
+
+# ---------------------------------------------------------------------------
+# GET /auth/me/permissions
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/me/permissions",
+    summary="Get effective permissions for the current user",
+    description="Returns a map of resource → [operations] based on all policies (user, role, org, team).",
+)
+async def get_my_permissions(
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    from app.auth.abac import build_permissions_map
+    perms = await build_permissions_map(user, db)
+    return {
+        "user_id": str(user.id),
+        "org_id": str(user.org_id),
+        "is_admin": user.is_admin,
+        "is_global_admin": user.is_global_admin,
+        "permissions": perms,
+    }

@@ -24,6 +24,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -31,7 +32,9 @@ from app.db import get_session
 from app.auth.models import (
     AuthConfig, Domain, Organization, Policy, Role,
     Subscription, Team, User, user_organizations,
+    user_teams,
 )
+from app.govern.models import org_roles, org_policies, team_roles, team_policies
 from app.auth.schemas import (
     MessageResponse,
     OrgCreate,
@@ -457,6 +460,152 @@ async def get_org_stats(
         total_domains=await count(Domain),
         total_subscriptions=total_subscriptions_result.scalar_one(),
     )
+
+
+# ===========================================================================
+# ORG STATS + ROLES/POLICIES MANAGEMENT
+# ===========================================================================
+
+@router.get("/orgs/{org_id}/stats")
+async def get_org_stats(
+    org_id: uuid.UUID,
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    """Overview stats for an organization."""
+    org = await db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    user_count = (await db.execute(
+        select(func.count()).where(User.org_id == org_id, User.is_active == True)
+    )).scalar_one()
+    team_count = (await db.execute(
+        select(func.count()).where(Team.org_id == org_id, Team.is_active == True)
+    )).scalar_one()
+    role_count = (await db.execute(
+        select(func.count()).where(Role.org_id == org_id)
+    )).scalar_one()
+    policy_count = (await db.execute(
+        select(func.count()).where(Policy.org_id == org_id)
+    )).scalar_one()
+
+    return {
+        "org_id": str(org_id),
+        "users": user_count,
+        "teams": team_count,
+        "roles": role_count,
+        "policies": policy_count,
+    }
+
+
+@router.get("/orgs/{org_id}/teams-grouped")
+async def get_org_teams_grouped(
+    org_id: uuid.UUID,
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    """Return teams grouped by team_type for an org landing page."""
+    stmt = select(Team).where(Team.org_id == org_id, Team.is_active == True).order_by(Team.team_type, Team.name)
+    result = await db.execute(stmt)
+    teams = result.scalars().all()
+    grouped: dict = {}
+    for t in teams:
+        ttype = t.team_type or "group"
+        if ttype not in grouped:
+            grouped[ttype] = []
+        grouped[ttype].append({
+            "id": str(t.id),
+            "name": t.name,
+            "display_name": t.display_name,
+            "email": t.email,
+            "parent_team_id": str(t.parent_team_id) if t.parent_team_id else None,
+        })
+    return grouped
+
+
+@router.get("/orgs/{org_id}/roles")
+async def list_org_roles(
+    org_id: uuid.UUID,
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    rows = await db.execute(select(org_roles).where(org_roles.c.org_id == org_id))
+    role_ids = [r["role_id"] for r in rows.mappings()]
+    if not role_ids:
+        return []
+    result = await db.execute(select(Role).where(Role.id.in_(role_ids)))
+    roles = result.scalars().all()
+    return [{"id": str(r.id), "name": r.name, "description": r.description} for r in roles]
+
+
+@router.post("/orgs/{org_id}/roles/{role_id}", status_code=status.HTTP_201_CREATED)
+async def assign_role_to_org(
+    org_id: uuid.UUID,
+    role_id: uuid.UUID,
+    user: User = Depends(require_org_admin),
+    db: AsyncSession = Depends(get_session),
+):
+    await db.execute(
+        pg_insert(org_roles).values(org_id=org_id, role_id=role_id).on_conflict_do_nothing()
+    )
+    await db.commit()
+    return {"message": "Role assigned to organization"}
+
+
+@router.delete("/orgs/{org_id}/roles/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_role_from_org(
+    org_id: uuid.UUID,
+    role_id: uuid.UUID,
+    user: User = Depends(require_org_admin),
+    db: AsyncSession = Depends(get_session),
+):
+    await db.execute(
+        org_roles.delete().where(org_roles.c.org_id == org_id, org_roles.c.role_id == role_id)
+    )
+    await db.commit()
+
+
+@router.get("/orgs/{org_id}/policies")
+async def list_org_policies(
+    org_id: uuid.UUID,
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    rows = await db.execute(select(org_policies).where(org_policies.c.org_id == org_id))
+    policy_ids = [r["policy_id"] for r in rows.mappings()]
+    if not policy_ids:
+        return []
+    result = await db.execute(select(Policy).where(Policy.id.in_(policy_ids)))
+    policies = result.scalars().all()
+    return [{"id": str(p.id), "name": p.name, "resource": p.resource, "operations": p.operations} for p in policies]
+
+
+@router.post("/orgs/{org_id}/policies/{policy_id}", status_code=status.HTTP_201_CREATED)
+async def assign_policy_to_org(
+    org_id: uuid.UUID,
+    policy_id: uuid.UUID,
+    user: User = Depends(require_org_admin),
+    db: AsyncSession = Depends(get_session),
+):
+    await db.execute(
+        pg_insert(org_policies).values(org_id=org_id, policy_id=policy_id).on_conflict_do_nothing()
+    )
+    await db.commit()
+    return {"message": "Policy assigned to organization"}
+
+
+@router.delete("/orgs/{org_id}/policies/{policy_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_policy_from_org(
+    org_id: uuid.UUID,
+    policy_id: uuid.UUID,
+    user: User = Depends(require_org_admin),
+    db: AsyncSession = Depends(get_session),
+):
+    await db.execute(
+        org_policies.delete().where(org_policies.c.org_id == org_id, org_policies.c.policy_id == policy_id)
+    )
+    await db.commit()
 
 
 # ===========================================================================
