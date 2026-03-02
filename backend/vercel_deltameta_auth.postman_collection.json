@@ -682,217 +682,60 @@
       ]
     },
     {
-      "name": "Domains",
-      "item": [
-        {
-          "name": "List Domains",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/domains",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "domains"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Create Domain",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Engineering\",\n  \"description\": \"Engineering domain\",\n  \"domain_type\": \"Technical\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/domains",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "domains"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "const body = pm.response.json();",
-                  "pm.collectionVariables.set('domain_id', body.id);",
-                  "pm.test('Domain has name', () => pm.expect(body.name).to.eql('Engineering'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Get Domain",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/domains/{{domain_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "domains",
-                "{{domain_id}}"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Correct domain', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('domain_id')));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Update Domain",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"description\": \"Updated Engineering domain\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/domains/{{domain_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "domains",
-                "{{domain_id}}"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Description updated', () => pm.expect(pm.response.json().description).to.eql('Updated Engineering domain'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Delete Domain",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/domains/{{domain_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "domains",
-                "{{domain_id}}"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
       "name": "Teams",
       "item": [
         {
+          "id": "78027b06-0d33-4542-94ef-954beb62a4ba",
           "name": "List Teams",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/teams",
+              "raw": "{{base_url}}/teams?org_id={{org_id}}&team_type=department&root_only=false",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "teams"
+              ],
+              "query": [
+                {
+                  "key": "org_id",
+                  "value": "{{org_id}}",
+                  "disabled": true
+                },
+                {
+                  "key": "team_type",
+                  "value": "department",
+                  "disabled": true
+                },
+                {
+                  "key": "root_only",
+                  "value": "false",
+                  "disabled": true
+                }
               ]
-            }
+            },
+            "description": "List teams. Filter by org_id (defaults to active org if omitted), team_type, parent."
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
-                ]
-              }
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Create Business Unit",
+          "id": "32fe4a66-137c-4b20-84e1-9c3943e401de",
+          "name": "Create Team",
           "request": {
             "method": "POST",
             "header": [
               {
-                "key": "Content-Type",
-                "value": "application/json"
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Technology BU\",\n  \"team_type\": \"business_unit\",\n  \"description\": \"Technology Business Unit\",\n  \"public_team_view\": true\n}"
-            },
             "url": {
               "raw": "{{base_url}}/teams",
               "host": [
@@ -901,37 +744,31 @@
               "path": [
                 "teams"
               ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "const body = pm.response.json();",
-                  "pm.collectionVariables.set('team_id', body.id);",
-                  "pm.test('BU created', () => pm.expect(body.team_type).to.eql('business_unit'));"
-                ]
+            },
+            "description": "org_id is REQUIRED \u2014 must be an org the caller is an admin of.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"org_id\": \"{{org_id}}\",\n  \"name\": \"Engineering\",\n  \"team_type\": \"department\",\n  \"display_name\": \"Engineering Team\",\n  \"description\": \"Core engineering department\",\n  \"public_team_view\": false,\n  \"parent_team_id\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
               }
             }
-          ]
+          },
+          "response": []
         },
         {
-          "name": "Create Child Team (Division)",
+          "id": "7e6ffd22-a860-47d6-bb76-fbd3e691e356",
+          "name": "Create Child Team",
           "request": {
             "method": "POST",
             "header": [
               {
-                "key": "Content-Type",
-                "value": "application/json"
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Engineering Division\",\n  \"team_type\": \"division\",\n  \"parent_team_id\": \"{{team_id}}\"\n}"
-            },
             "url": {
               "raw": "{{base_url}}/teams",
               "host": [
@@ -940,27 +777,56 @@
               "path": [
                 "teams"
               ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "pm.collectionVariables.set('child_team_id', pm.response.json().id);",
-                  "pm.test('Has parent', () => pm.expect(pm.response.json().parent_team_id).to.eql(pm.collectionVariables.get('team_id')));"
-                ]
+            },
+            "description": "Create a team nested under a parent team.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"org_id\": \"{{org_id}}\",\n  \"name\": \"Frontend\",\n  \"team_type\": \"group\",\n  \"parent_team_id\": \"{{team_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
               }
             }
-          ]
+          },
+          "response": []
         },
         {
+          "id": "e4a24b1c-2835-4ec8-b24b-5aaedab53efe",
+          "name": "Get Team",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "aa5b1c9e-1abb-4a16-89e2-a5f0e2a9bfa3",
           "name": "Get Team Hierarchy",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/teams/{{team_id}}/hierarchy",
               "host": [
@@ -971,63 +837,22 @@
                 "{{team_id}}",
                 "hierarchy"
               ]
-            }
+            },
+            "description": "Returns full child-tree rooted at this team."
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Has children', () => pm.expect(pm.response.json().children).to.be.an('array'));"
-                ]
-              }
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Get Team",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/teams/{{team_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "teams",
-                "{{team_id}}"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
+          "id": "245833ae-2da6-46d2-85bd-b11eb76fa5a7",
           "name": "Update Team",
           "request": {
             "method": "PUT",
             "header": [
               {
-                "key": "Content-Type",
-                "value": "application/json"
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"description\": \"Updated BU description\"\n}"
-            },
             "url": {
               "raw": "{{base_url}}/teams/{{team_id}}",
               "host": [
@@ -1037,25 +862,56 @@
                 "teams",
                 "{{team_id}}"
               ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
-                ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"description\": \"Updated description\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
               }
             }
-          ]
+          },
+          "response": []
         },
         {
+          "id": "5866eb99-3136-42cf-a1c2-cb63e15e8465",
+          "name": "Delete Team",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "05072c95-306a-4e7d-a668-e5e45f6d5b3b",
           "name": "List Team Members",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/teams/{{team_id}}/members",
               "host": [
@@ -1066,48 +922,250 @@
                 "{{team_id}}",
                 "members"
               ]
-            }
+            },
+            "description": ""
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
-                ]
-              }
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Delete Team",
+          "id": "e5e31a56-f891-4d07-8429-087ba6f2bb45",
+          "name": "Add Member to Team",
           "request": {
-            "method": "DELETE",
-            "header": [],
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/teams/{{child_team_id}}",
+              "raw": "{{base_url}}/teams/{{team_id}}/members/{{user_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "teams",
-                "{{child_team_id}}"
+                "{{team_id}}",
+                "members",
+                "{{user_id}}"
               ]
-            }
+            },
+            "description": "Add a user to a team. Requires org admin."
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
-                ]
+          "response": []
+        },
+        {
+          "id": "f4238ac0-532f-4294-924a-88f06b3b666d",
+          "name": "Remove Member from Team",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
-            }
-          ]
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}/members/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}",
+                "members",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Remove a user from a team."
+          },
+          "response": []
+        },
+        {
+          "id": "d14b7c5f-eaef-4426-aa7f-1aa65ce187c4",
+          "name": "Get Team Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}/stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}",
+                "stats"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "1710781e-d663-43e4-85ef-2317b438a012",
+          "name": "List Team Roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}",
+                "roles"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "0e0cf315-c7fb-4500-8d53-133b0b6a2653",
+          "name": "Assign Role to Team",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}/roles/{{role_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}",
+                "roles",
+                "{{role_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "0ccc83f6-8125-4eef-abc9-941a59c0c70a",
+          "name": "Remove Role from Team",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}/roles/{{role_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}",
+                "roles",
+                "{{role_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "570acc55-323b-4f20-a656-8d4bfbc4389a",
+          "name": "List Team Policies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}/policies",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}",
+                "policies"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "1f9822f4-1a3e-4d35-8521-649a67feb635",
+          "name": "Assign Policy to Team",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}/policies/{{policy_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}",
+                "policies",
+                "{{policy_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "ac7d064a-5f78-4d3c-887d-8c213022e3f3",
+          "name": "Remove Policy from Team",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}/policies/{{policy_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}",
+                "policies",
+                "{{policy_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
         }
       ]
     },
@@ -1271,6 +1329,112 @@
               }
             }
           ]
+        },
+        {
+          "id": "46319a24-4ca3-4253-beaa-b4c1d0e71dcb",
+          "name": "List Users with Policy",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/policies/{{policy_id}}/users",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "policies",
+                "{{policy_id}}",
+                "users"
+              ]
+            },
+            "description": "List all users who have this policy directly assigned (org admin)."
+          },
+          "response": []
+        },
+        {
+          "id": "58ab4e2d-7dc9-4eaf-ab92-e62eb8ece215",
+          "name": "Assign Policy to User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/policies/{{policy_id}}/assign/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "policies",
+                "{{policy_id}}",
+                "assign",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Directly assign a policy to a user (bypassing roles). Org admin only."
+          },
+          "response": []
+        },
+        {
+          "id": "9a1fa86c-8b70-498e-bc40-c07ea53659c2",
+          "name": "Remove Policy from User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/policies/{{policy_id}}/assign/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "policies",
+                "{{policy_id}}",
+                "assign",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Remove a directly-assigned policy from a user."
+          },
+          "response": []
+        },
+        {
+          "id": "ea907745-8362-473c-92c7-0d8afe0affbb",
+          "name": "List User's Direct Policies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/policies/user/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "policies",
+                "user",
+                "{{user_id}}"
+              ]
+            },
+            "description": "List all policies directly assigned to a specific user."
+          },
+          "response": []
         }
       ]
     },
@@ -1753,6 +1917,40 @@
           ]
         },
         {
+          "id": "87e7f7a5-a05a-4dfd-a3af-75e1b26d4f79",
+          "name": "Update Member Role (Toggle Org Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orgs/{{org_id}}/members/{{user_id}}?is_org_admin=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orgs",
+                "{{org_id}}",
+                "members",
+                "{{user_id}}"
+              ],
+              "query": [
+                {
+                  "key": "is_org_admin",
+                  "value": "true",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Promote or demote a member's org-admin status.\nPass ?is_org_admin=true to promote, ?is_org_admin=false to demote.\nGuards against demoting the last admin of an org."
+          },
+          "response": []
+        },
+        {
           "name": "Remove User from Org (requires user_id)",
           "request": {
             "method": "DELETE",
@@ -1777,6 +1975,286 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200 or 400', () => pm.expect([200,400]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Org Stats (users, teams, roles, policies)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orgs/{{org_id}}/stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orgs",
+                "{{org_id}}",
+                "stats"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.test('Has users count', () => pm.expect(d.users).to.be.a('number'));",
+                  "pm.test('Has teams count', () => pm.expect(d.teams).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Teams Grouped by Type",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orgs/{{org_id}}/teams-grouped",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orgs",
+                "{{org_id}}",
+                "teams-grouped"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Is object', () => pm.expect(pm.response.json()).to.be.an('object'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Org Roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orgs/{{org_id}}/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orgs",
+                "{{org_id}}",
+                "roles"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Assign Role to Org",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orgs/{{org_id}}/roles/{{role_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orgs",
+                "{{org_id}}",
+                "roles",
+                "{{role_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove Role from Org",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orgs/{{org_id}}/roles/{{role_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orgs",
+                "{{org_id}}",
+                "roles",
+                "{{role_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Org Policies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orgs/{{org_id}}/policies",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orgs",
+                "{{org_id}}",
+                "policies"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Assign Policy to Org",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orgs/{{org_id}}/policies/{{policy_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orgs",
+                "{{org_id}}",
+                "policies",
+                "{{policy_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove Policy from Org",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orgs/{{org_id}}/policies/{{policy_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orgs",
+                "{{org_id}}",
+                "policies",
+                "{{policy_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
                 ]
               }
             }
@@ -3536,6 +4014,7 @@
       "name": "Subject Areas",
       "item": [
         {
+          "id": "3182192b-aa7a-4645-b2ef-76cfde0210c0",
           "name": "List Subject Areas",
           "request": {
             "method": "GET",
@@ -3546,29 +4025,32 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/subject-areas",
+              "raw": "{{base_url}}/subject-areas?search=&is_active=true",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "subject-areas"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "disabled": true
+                }
               ]
-            }
+            },
+            "description": "List subject areas (formerly /domains). Replaces /domains."
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
-                ]
-              }
-            }
-          ]
+          "response": []
         },
         {
+          "id": "3eded43c-c643-4052-b283-d87b20a29105",
           "name": "Create Subject Area",
           "request": {
             "method": "POST",
@@ -3576,10 +4058,6 @@
               {
                 "key": "Authorization",
                 "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
               }
             ],
             "url": {
@@ -3591,9 +4069,10 @@
                 "subject-areas"
               ]
             },
+            "description": "Creates a subject area in the active org. Returns 409 if name already exists.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Finance\",\n  \"display_name\": \"Finance Domain\",\n  \"description\": \"All finance data\",\n  \"domain_type\": \"source_aligned\"\n}",
+              "raw": "{\n  \"name\": \"Finance\",\n  \"display_name\": \"Finance Domain\",\n  \"description\": \"Financial data subject area\",\n  \"domain_type\": \"Business\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3601,22 +4080,10 @@
               }
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "const d = pm.response.json();",
-                  "pm.collectionVariables.set('subject_area_id', d.id);",
-                  "pm.test('Has name', () => pm.expect(d.name).to.eql('Finance'));"
-                ]
-              }
-            }
-          ]
+          "response": []
         },
         {
+          "id": "83075932-0846-4054-82b1-988264417820",
           "name": "Get Subject Area",
           "request": {
             "method": "GET",
@@ -3635,21 +4102,13 @@
                 "subject-areas",
                 "{{subject_area_id}}"
               ]
-            }
+            },
+            "description": ""
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
+          "response": []
         },
         {
+          "id": "2a4eb105-60bc-440c-a74c-a8702993b4f2",
           "name": "Update Subject Area",
           "request": {
             "method": "PUT",
@@ -3657,10 +4116,6 @@
               {
                 "key": "Authorization",
                 "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
               }
             ],
             "url": {
@@ -3673,9 +4128,10 @@
                 "{{subject_area_id}}"
               ]
             },
+            "description": "",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"display_name\": \"Updated Finance Domain\"\n}",
+              "raw": "{\n  \"description\": \"Updated description\",\n  \"is_active\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3683,20 +4139,10 @@
               }
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Updated', () => pm.expect(pm.response.json().display_name).to.eql('Updated Finance Domain'));"
-                ]
-              }
-            }
-          ]
+          "response": []
         },
         {
+          "id": "eeb296db-1488-42b0-a4c6-8533be3ca666",
           "name": "Delete Subject Area",
           "request": {
             "method": "DELETE",
@@ -3715,19 +4161,10 @@
                 "subject-areas",
                 "{{subject_area_id}}"
               ]
-            }
+            },
+            "description": "Returns 204 No Content on success."
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
-                ]
-              }
-            }
-          ]
+          "response": []
         }
       ],
       "description": "Subject Areas (formerly IAM Domains)"
@@ -7290,7 +7727,8 @@
       "name": "Admin \u2014 User Management",
       "item": [
         {
-          "name": "List Users (org-wide)",
+          "id": "6ddca203-a048-4ec3-91f5-936711318c7c",
+          "name": "List Users",
           "request": {
             "method": "GET",
             "header": [
@@ -7308,22 +7746,13 @@
                 "admin",
                 "users"
               ]
-            }
+            },
+            "description": "List all users in the active org. Supports search, is_active, is_admin filters."
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
-                ]
-              }
-            }
-          ]
+          "response": []
         },
         {
+          "id": "84b33d34-3567-4308-94ba-a1f45053312b",
           "name": "List Users \u2014 Search",
           "request": {
             "method": "GET",
@@ -7345,18 +7774,23 @@
               "query": [
                 {
                   "key": "search",
-                  "value": "john"
+                  "value": "john",
+                  "disabled": false
                 },
                 {
                   "key": "is_active",
-                  "value": "true"
+                  "value": "true",
+                  "disabled": false
                 }
               ]
-            }
-          }
+            },
+            "description": ""
+          },
+          "response": []
         },
         {
-          "name": "List Users \u2014 Admins only",
+          "id": "82f9dd9e-694b-4eaf-824d-17bfa05c8384",
+          "name": "List Users \u2014 Admins Only",
           "request": {
             "method": "GET",
             "header": [
@@ -7377,24 +7811,24 @@
               "query": [
                 {
                   "key": "is_admin",
-                  "value": "true"
+                  "value": "true",
+                  "disabled": false
                 }
               ]
-            }
-          }
+            },
+            "description": ""
+          },
+          "response": []
         },
         {
-          "name": "Create User (Admin Creates)",
+          "id": "ead25de6-18d4-43f6-8fda-5b2b3b902e8d",
+          "name": "Create User",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Authorization",
                 "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
               }
             ],
             "url": {
@@ -7407,9 +7841,10 @@
                 "users"
               ]
             },
+            "description": "Create a user in the active org.\n\nusername is auto-derived from email.\npassword + confirm_password must match and meet strength requirements (min 8 chars, upper+lower+digit).\nteam_ids, role_ids, domain_ids \u2014 UUIDs of org-scoped entities to assign at creation.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"newemployee@company.com\",\n  \"username\": \"newemployee\",\n  \"name\": \"New Employee\",\n  \"display_name\": \"New Employee\",\n  \"is_admin\": false,\n  \"send_invite\": true\n}",
+              "raw": "{\n  \"email\": \"john.doe@acme.com\",\n  \"display_name\": \"John Doe\",\n  \"description\": \"Senior data engineer\",\n  \"password\": \"Secure@1234\",\n  \"confirm_password\": \"Secure@1234\",\n  \"is_admin\": false,\n  \"team_ids\": [],\n  \"role_ids\": [],\n  \"domain_ids\": []\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -7417,24 +7852,45 @@
               }
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "const d = pm.response.json();",
-                  "pm.collectionVariables.set('admin_created_user_id', d.id);",
-                  "pm.test('Active by default', () => pm.expect(d.is_active).to.be.true);",
-                  "pm.test('Not verified by default', () => pm.expect(d.is_verified).to.be.false);"
-                ]
-              }
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Get User by ID",
+          "id": "d3f762c9-1104-4875-b176-820d935f6224",
+          "name": "Create User (with Teams & Roles)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/users",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ]
+            },
+            "description": "Create a user and assign to teams and roles at the same time.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice.smith@acme.com\",\n  \"display_name\": \"Alice Smith\",\n  \"password\": \"Alice@5678\",\n  \"confirm_password\": \"Alice@5678\",\n  \"is_admin\": false,\n  \"team_ids\": [\n    \"{{team_id}}\"\n  ],\n  \"role_ids\": [\n    \"{{role_id}}\"\n  ],\n  \"domain_ids\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "c44dd7f8-b0c8-4d44-9211-c28c5e96537f",
+          "name": "Get User",
           "request": {
             "method": "GET",
             "header": [
@@ -7453,10 +7909,13 @@
                 "users",
                 "{{admin_created_user_id}}"
               ]
-            }
-          }
+            },
+            "description": ""
+          },
+          "response": []
         },
         {
+          "id": "75e5a521-7f65-4f2f-8713-358dc60e058b",
           "name": "Update User",
           "request": {
             "method": "PUT",
@@ -7464,10 +7923,6 @@
               {
                 "key": "Authorization",
                 "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
               }
             ],
             "url": {
@@ -7481,29 +7936,28 @@
                 "{{admin_created_user_id}}"
               ]
             },
+            "description": "Update user profile and reassign teams/roles/domains.\nteam_ids/role_ids/domain_ids are full-replace \u2014 pass empty list [] to remove all.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"display_name\": \"Updated Employee Name\",\n  \"is_admin\": false\n}",
+              "raw": "{\n  \"display_name\": \"John D. Updated\",\n  \"description\": \"Updated description\",\n  \"is_admin\": false,\n  \"team_ids\": [\n    \"{{team_id}}\"\n  ],\n  \"role_ids\": [],\n  \"domain_ids\": []\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             }
-          }
+          },
+          "response": []
         },
         {
-          "name": "Reset Password (Generate Temp)",
+          "id": "b696ee26-b449-4e18-9cb1-bb0bb047650d",
+          "name": "Reset User Password",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Authorization",
                 "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
               }
             ],
             "url": {
@@ -7518,9 +7972,10 @@
                 "reset-password"
               ]
             },
+            "description": "Admin sets a new password for a user. Both fields required and must match.",
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\n  \"new_password\": \"NewPass@999\",\n  \"confirm_password\": \"NewPass@999\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -7528,70 +7983,11 @@
               }
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "const d = pm.response.json();",
-                  "pm.test('Has temp password', () => pm.expect(d.temporary_password).to.not.be.null);"
-                ]
-              }
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Reset Password (Set Specific)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/admin/users/{{admin_created_user_id}}/reset-password",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "users",
-                "{{admin_created_user_id}}",
-                "reset-password"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"new_password\": \"NewSecurePass123!\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Deactivate User (Soft Delete)",
+          "id": "66ba7b70-3169-4f48-8349-4dee781954f5",
+          "name": "Deactivate User",
           "request": {
             "method": "DELETE",
             "header": [
@@ -7610,534 +8006,13 @@
                 "users",
                 "{{admin_created_user_id}}"
               ]
-            }
+            },
+            "description": "Soft-delete (deactivate) a user. Cannot deactivate yourself."
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
-                ]
-              }
-            }
-          ]
+          "response": []
         }
       ],
       "description": "Org admin only. Creates users without self-registration. Password can be generated or set."
-    },
-    {
-      "name": "Organizations \u2014 Roles, Policies & Stats",
-      "item": [
-        {
-          "name": "Org Stats (users, teams, roles, policies)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/orgs/{{org_id}}/stats",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "orgs",
-                "{{org_id}}",
-                "stats"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "const d = pm.response.json();",
-                  "pm.test('Has users count', () => pm.expect(d.users).to.be.a('number'));",
-                  "pm.test('Has teams count', () => pm.expect(d.teams).to.be.a('number'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Teams Grouped by Type",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/orgs/{{org_id}}/teams-grouped",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "orgs",
-                "{{org_id}}",
-                "teams-grouped"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Is object', () => pm.expect(pm.response.json()).to.be.an('object'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "List Org Roles",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/orgs/{{org_id}}/roles",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "orgs",
-                "{{org_id}}",
-                "roles"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Assign Role to Org",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/orgs/{{org_id}}/roles/{{role_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "orgs",
-                "{{org_id}}",
-                "roles",
-                "{{role_id}}"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Remove Role from Org",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/orgs/{{org_id}}/roles/{{role_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "orgs",
-                "{{org_id}}",
-                "roles",
-                "{{role_id}}"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "List Org Policies",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/orgs/{{org_id}}/policies",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "orgs",
-                "{{org_id}}",
-                "policies"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Assign Policy to Org",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/orgs/{{org_id}}/policies/{{policy_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "orgs",
-                "{{org_id}}",
-                "policies",
-                "{{policy_id}}"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Remove Policy from Org",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/orgs/{{org_id}}/policies/{{policy_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "orgs",
-                "{{org_id}}",
-                "policies",
-                "{{policy_id}}"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Teams \u2014 Roles, Policies & Stats",
-      "item": [
-        {
-          "name": "Team Stats (members, sub-teams)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/teams/{{team_id}}/stats",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "teams",
-                "{{team_id}}",
-                "stats"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "const d = pm.response.json();",
-                  "pm.test('Has members count', () => pm.expect(d.members).to.be.a('number'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "List Team Roles",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/teams/{{team_id}}/roles",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "teams",
-                "{{team_id}}",
-                "roles"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Assign Role to Team",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/teams/{{team_id}}/roles/{{role_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "teams",
-                "{{team_id}}",
-                "roles",
-                "{{role_id}}"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Remove Role from Team",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/teams/{{team_id}}/roles/{{role_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "teams",
-                "{{team_id}}",
-                "roles",
-                "{{role_id}}"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "List Team Policies",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/teams/{{team_id}}/policies",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "teams",
-                "{{team_id}}",
-                "policies"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Assign Policy to Team",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/teams/{{team_id}}/policies/{{policy_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "teams",
-                "{{team_id}}",
-                "policies",
-                "{{policy_id}}"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Remove Policy from Team",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/teams/{{team_id}}/policies/{{policy_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "teams",
-                "{{team_id}}",
-                "policies",
-                "{{policy_id}}"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
-                ]
-              }
-            }
-          ]
-        }
-      ]
     },
     {
       "name": "ABAC \u2014 Effective Permissions",
