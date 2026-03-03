@@ -21,12 +21,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.auth.models import Policy, User, user_policies, role_policies
+from app.auth.models import Policy, Role, Team, User, user_policies, role_policies
 from app.auth.schemas import (
     MessageResponse,
     PolicyCreate,
     PolicyResponse,
     PolicyUpdate,
+    RoleResponse,
+    TeamSummary,
 )
 from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
 from app.resources.service import validate_resource_key, get_operations_for_key
@@ -225,6 +227,64 @@ async def _get_user_in_org(user_id: uuid.UUID, org_id: uuid.UUID, session: Async
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found in this organization")
     return user
+
+
+# ---------------------------------------------------------------------------
+# Role ↔ Policy — read-only view
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/{policy_id}/roles",
+    response_model=List[RoleResponse],
+    summary="List roles that have this policy assigned",
+)
+async def list_policy_roles(
+    policy_id: uuid.UUID,
+    current_user=Depends(require_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return all roles in the active org that have been assigned this policy."""
+    await _get_policy_or_404(policy_id, get_active_org_id(current_user), session)
+    rows = await session.execute(
+        select(role_policies).where(role_policies.c.policy_id == policy_id)
+    )
+    role_ids = [r["role_id"] for r in rows.mappings()]
+    if not role_ids:
+        return []
+    result = await session.execute(
+        select(Role)
+        .where(Role.id.in_(role_ids), Role.org_id == get_active_org_id(current_user))
+        .options(selectinload(Role.policies))
+    )
+    return result.scalars().all()
+
+
+# ---------------------------------------------------------------------------
+# Team ↔ Policy — read-only view
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/{policy_id}/teams",
+    response_model=List[TeamSummary],
+    summary="List teams that have this policy assigned",
+)
+async def list_policy_teams(
+    policy_id: uuid.UUID,
+    current_user=Depends(require_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return all teams in the active org that have been assigned this policy."""
+    await _get_policy_or_404(policy_id, get_active_org_id(current_user), session)
+    rows = await session.execute(
+        select(team_policies).where(team_policies.c.policy_id == policy_id)
+    )
+    team_ids = [r["team_id"] for r in rows.mappings()]
+    if not team_ids:
+        return []
+    result = await session.execute(
+        select(Team).where(Team.id.in_(team_ids), Team.org_id == get_active_org_id(current_user))
+    )
+    return result.scalars().all()
 
 
 # ---------------------------------------------------------------------------

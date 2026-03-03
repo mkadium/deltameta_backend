@@ -15,8 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import get_session
-from app.auth.models import Policy, Role, User, user_roles
-from app.auth.schemas import MessageResponse, PolicyResponse, RoleCreate, RoleResponse, RoleUpdate, UserResponse
+from app.auth.models import Policy, Role, Team, User, user_roles
+from app.auth.schemas import MessageResponse, PolicyResponse, RoleCreate, RoleResponse, RoleUpdate, TeamSummary, UserResponse
 from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
 from app.govern.models import team_roles, org_roles
 
@@ -216,6 +216,30 @@ async def remove_role_from_user(
     user.roles.remove(role)
     await session.commit()
     return MessageResponse(message=f"Role removed from user '{user.name}'")
+
+
+# ---------------------------------------------------------------------------
+# Teams by Role
+# ---------------------------------------------------------------------------
+
+@router.get("/{role_id}/teams", response_model=List[TeamSummary], summary="List teams that have this role assigned")
+async def list_role_teams(
+    role_id: uuid.UUID,
+    current_user=Depends(require_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return all teams in the active org that have been assigned this role."""
+    await _get_role_or_404(role_id, get_active_org_id(current_user), session)
+    rows = await session.execute(
+        select(team_roles).where(team_roles.c.role_id == role_id)
+    )
+    team_ids = [r["team_id"] for r in rows.mappings()]
+    if not team_ids:
+        return []
+    result = await session.execute(
+        select(Team).where(Team.id.in_(team_ids), Team.org_id == get_active_org_id(current_user))
+    )
+    return result.scalars().all()
 
 
 # ---------------------------------------------------------------------------

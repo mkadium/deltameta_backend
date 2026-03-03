@@ -24,8 +24,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import get_session
-from app.auth.dependencies import get_active_org_id, require_org_admin
-from app.auth.models import Domain, Role, Team, User, user_organizations, user_teams, user_roles, user_policies
+from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
+from app.auth.models import Domain, Policy, Role, Team, User, user_organizations, user_teams, user_roles, user_policies
 from app.auth.service import hash_password
 from sqlalchemy import insert
 
@@ -454,6 +454,63 @@ async def reset_password(
         user_id=user.id,
         message="Password updated successfully.",
     )
+
+
+@router.get("/users/{user_id}/roles", summary="List roles assigned to a user")
+async def get_user_roles(
+    user_id: uuid.UUID,
+    admin: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    """Return all roles assigned to the given user in the active org."""
+    active_org = get_active_org_id(admin)
+    result = await db.execute(
+        select(User)
+        .where(User.id == user_id, User.org_id == active_org)
+        .options(selectinload(User.roles))
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return [{"id": str(r.id), "name": r.name, "description": r.description, "is_system_role": r.is_system_role} for r in user.roles]
+
+
+@router.get("/users/{user_id}/teams", summary="List teams a user belongs to")
+async def get_user_teams(
+    user_id: uuid.UUID,
+    admin: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    """Return all teams the given user belongs to in the active org."""
+    active_org = get_active_org_id(admin)
+    result = await db.execute(
+        select(User)
+        .where(User.id == user_id, User.org_id == active_org)
+        .options(selectinload(User.teams))
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return [{"id": str(t.id), "name": t.name, "display_name": t.display_name, "team_type": t.team_type} for t in user.teams]
+
+
+@router.get("/users/{user_id}/policies", summary="List policies directly assigned to a user")
+async def get_user_policies(
+    user_id: uuid.UUID,
+    admin: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    """Return all policies directly assigned to the given user (not via role/team)."""
+    active_org = get_active_org_id(admin)
+    result = await db.execute(
+        select(User)
+        .where(User.id == user_id, User.org_id == active_org)
+        .options(selectinload(User.policies))
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return [{"id": str(p.id), "name": p.name, "resource": p.resource, "operations": p.operations} for p in user.policies]
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

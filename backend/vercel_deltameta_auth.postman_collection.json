@@ -199,6 +199,11 @@
       "key": "bot_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "task_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {
@@ -1793,6 +1798,58 @@
             }
           },
           "response": []
+        },
+        {
+          "id": "7d134f60-cfa9-4712-99cc-bb2d0e4d6fef",
+          "name": "List Policy Roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/policies/{{policy_id}}/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "policies",
+                "{{policy_id}}",
+                "roles"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "b7e2b877-fb58-41f5-a16e-b854d8e3923a",
+          "name": "List Policy Teams",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/policies/{{policy_id}}/teams",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "policies",
+                "{{policy_id}}",
+                "teams"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
         }
       ]
     },
@@ -2199,6 +2256,58 @@
                 }
               }
             }
+          },
+          "response": []
+        },
+        {
+          "id": "f9a6bf69-fd99-46f5-a7ea-c1b893260a1f",
+          "name": "List Role Policies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles/{{role_id}}/policies",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "roles",
+                "{{role_id}}",
+                "policies"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "dacf48c8-13cd-4fd3-bffb-d4169cdc0b67",
+          "name": "List Role Teams",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles/{{role_id}}/teams",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "roles",
+                "{{role_id}}",
+                "teams"
+              ]
+            },
+            "description": ""
           },
           "response": []
         }
@@ -9250,6 +9359,87 @@
             "description": "Soft-delete (deactivate) a user. Cannot deactivate yourself."
           },
           "response": []
+        },
+        {
+          "id": "860a19b6-3baa-46d2-ab0e-c06745829b07",
+          "name": "Get User Roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/users/{{user_id}}/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{user_id}}",
+                "roles"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "3712a0ad-e6bf-4c41-8acd-7373d3faca6d",
+          "name": "Get User Teams",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/users/{{user_id}}/teams",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{user_id}}",
+                "teams"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "a8b7c72f-f0ba-4200-b1c5-f5f3cc538702",
+          "name": "Get User Policies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/users/{{user_id}}/policies",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{user_id}}",
+                "policies"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
         }
       ],
       "description": "Org admin only. Creates users without self-registration. Password can be generated or set."
@@ -9692,6 +9882,58 @@
                 }
               }
             }
+          },
+          "response": []
+        },
+        {
+          "id": "48b3388d-3ee9-4719-bdf7-62846961ffa4",
+          "name": "List Dataset Owners",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/datasets/{{dataset_id}}/owners",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "datasets",
+                "{{dataset_id}}",
+                "owners"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "a2723e09-aad0-4edd-99db-a0a65f0f6625",
+          "name": "List Dataset Experts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/datasets/{{dataset_id}}/experts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "datasets",
+                "{{dataset_id}}",
+                "experts"
+              ]
+            },
+            "description": ""
           },
           "response": []
         }
@@ -10405,6 +10647,84 @@
             }
           },
           "response": []
+        },
+        {
+          "id": "266a5075-7911-4589-8ac4-c079cda7e299",
+          "name": "List Asset Tags",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/tags",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "tags"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "73dfc32d-55d7-4615-989b-ea1711cf8178",
+          "name": "List Asset Owners",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/owners",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "owners"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "b47f21fb-e1d1-45d1-aefa-1bc83c585c05",
+          "name": "List Asset Experts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/experts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "experts"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
         }
       ]
     },
@@ -10691,6 +11011,263 @@
               ]
             },
             "description": "Get latest run status for a bot."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "a4cff2b8-9e7e-4205-96d5-9b73da8f0633",
+      "name": "Scheduled Tasks",
+      "item": [
+        {
+          "id": "c129240f-c2ac-457d-8464-c69dbdcd8505",
+          "name": "List Scheduled Tasks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/scheduled-tasks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "scheduled-tasks"
+              ],
+              "query": [
+                {
+                  "key": "entity_type",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "entity_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "schedule_type",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "is_active",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "last_status",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "9fc4c292-eccf-44d5-a585-9ab9306b2a48",
+          "name": "Create Scheduled Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/scheduled-tasks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "scheduled-tasks"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"entity_type\": \"bot\",\n  \"entity_id\": \"{{bot_id}}\",\n  \"task_name\": \"Nightly Metadata Scan\",\n  \"schedule_type\": \"scheduled\",\n  \"cron_expr\": \"0 2 * * *\",\n  \"payload\": {},\n  \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "27c9e518-21d3-4a52-9e64-f2756ca7066c",
+          "name": "Get Scheduled Task",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/scheduled-tasks/{{task_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "scheduled-tasks",
+                "{{task_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "a85f5507-53b4-4e57-9045-c793d525b950",
+          "name": "Update Scheduled Task",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/scheduled-tasks/{{task_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "scheduled-tasks",
+                "{{task_id}}"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"task_name\": \"Updated Task Name\",\n  \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "8bc3ce3c-31b0-4f3f-af59-538d485b878f",
+          "name": "Activate Scheduled Task",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/scheduled-tasks/{{task_id}}/activate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "scheduled-tasks",
+                "{{task_id}}",
+                "activate"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "030d5744-4de7-436b-883a-bee924840fdb",
+          "name": "Deactivate Scheduled Task",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/scheduled-tasks/{{task_id}}/deactivate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "scheduled-tasks",
+                "{{task_id}}",
+                "deactivate"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "eb78129b-97ff-41c2-a711-5c96b612d20f",
+          "name": "Trigger Scheduled Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/scheduled-tasks/{{task_id}}/trigger",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "scheduled-tasks",
+                "{{task_id}}",
+                "trigger"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "6871d93d-227d-45c8-81ef-b35ce84ce9d7",
+          "name": "Delete Scheduled Task",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/scheduled-tasks/{{task_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "scheduled-tasks",
+                "{{task_id}}"
+              ]
+            },
+            "description": ""
           },
           "response": []
         }
