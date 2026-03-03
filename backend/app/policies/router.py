@@ -28,7 +28,7 @@ from app.auth.schemas import (
     PolicyResponse,
     PolicyUpdate,
     RoleResponse,
-    TeamSummary,
+    TeamResponse,
 )
 from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
 from app.resources.service import validate_resource_key, get_operations_for_key
@@ -265,7 +265,7 @@ async def list_policy_roles(
 
 @router.get(
     "/{policy_id}/teams",
-    response_model=List[TeamSummary],
+    response_model=List[TeamResponse],
     summary="List teams that have this policy assigned",
 )
 async def list_policy_teams(

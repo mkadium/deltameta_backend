@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db import get_session
 from app.auth.models import Policy, Role, Team, User, user_roles
-from app.auth.schemas import MessageResponse, PolicyResponse, RoleCreate, RoleResponse, RoleUpdate, TeamSummary, UserResponse
+from app.auth.schemas import MessageResponse, PolicyResponse, RoleCreate, RoleResponse, RoleUpdate, TeamResponse, UserResponse
 from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
 from app.govern.models import team_roles, org_roles
 
@@ -222,7 +222,7 @@ async def remove_role_from_user(
 # Teams by Role
 # ---------------------------------------------------------------------------
 
-@router.get("/{role_id}/teams", response_model=List[TeamSummary], summary="List teams that have this role assigned")
+@router.get("/{role_id}/teams", response_model=List[TeamResponse], summary="List teams that have this role assigned")
 async def list_role_teams(
     role_id: uuid.UUID,
     current_user=Depends(require_active_user),
