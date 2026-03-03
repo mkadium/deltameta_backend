@@ -80,6 +80,7 @@ try:
     from app.data_assets.router import router as data_assets_router
     from app.bots.router import router as bots_router
     from app.scheduled_tasks.router import router as scheduled_tasks_router
+    from app.profiling.router import router as profiling_router
 except Exception:
     from .auth.router import router as auth_router
     from .teams.router import router as teams_router
@@ -107,6 +108,7 @@ except Exception:
     from .data_assets.router import router as data_assets_router
     from .bots.router import router as bots_router
     from .scheduled_tasks.router import router as scheduled_tasks_router
+    from .profiling.router import router as profiling_router
 
 app.include_router(auth_router)
 app.include_router(teams_router)
@@ -134,6 +136,7 @@ app.include_router(datasets_router)
 app.include_router(data_assets_router)
 app.include_router(bots_router)
 app.include_router(scheduled_tasks_router)
+app.include_router(profiling_router)
 
 # Initialize OpenTelemetry tracing (optional)
 if setup_tracing:

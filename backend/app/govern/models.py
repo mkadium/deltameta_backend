@@ -700,3 +700,62 @@ class Bot(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     service_endpoint = relationship("ServiceEndpoint", foreign_keys=[service_endpoint_id])
+
+
+# ---------------------------------------------------------------------------
+# DataAssetProfile  (one profiling run per data asset)
+# ---------------------------------------------------------------------------
+
+class DataAssetProfile(Base):
+    __tablename__ = "data_asset_profiles"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    asset_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_assets.id", ondelete="CASCADE"), nullable=False)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    triggered_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    # status: pending | running | success | failed
+    status = Column(String(20), nullable=False, default="pending")
+    row_count = Column(Integer, nullable=True)
+    # Asset-level stats: { "table_size_bytes": ..., "column_count": ..., "sample_size": ... }
+    profile_data = Column(JSONB, nullable=False, default=dict)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    asset = relationship("DataAsset", foreign_keys=[asset_id])
+    column_profiles = relationship(
+        "ColumnProfile", back_populates="profile",
+        cascade="all, delete-orphan", lazy="selectin",
+    )
+
+
+# ---------------------------------------------------------------------------
+# ColumnProfile  (per-column statistics for a profiling run)
+# ---------------------------------------------------------------------------
+
+class ColumnProfile(Base):
+    __tablename__ = "column_profiles"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    profile_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_asset_profiles.id", ondelete="CASCADE"), nullable=False)
+    column_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_asset_columns.id", ondelete="SET NULL"), nullable=True)
+    asset_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_assets.id", ondelete="CASCADE"), nullable=False)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    column_name = Column(String(255), nullable=False)
+    data_type = Column(String(100), nullable=True)
+    null_count = Column(Integer, nullable=True)
+    null_pct = Column(sa.Float, nullable=True)
+    distinct_count = Column(Integer, nullable=True)
+    min_val = Column(String(512), nullable=True)
+    max_val = Column(String(512), nullable=True)
+    mean_val = Column(sa.Float, nullable=True)
+    stddev_val = Column(sa.Float, nullable=True)
+    # [{"value": "...", "count": N}, ...]
+    top_values = Column(JSONB, nullable=False, default=list)
+    # [{"bucket": "...", "count": N}, ...]
+    histogram = Column(JSONB, nullable=False, default=list)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    profile = relationship("DataAssetProfile", back_populates="column_profiles")

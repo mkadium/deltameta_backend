@@ -204,6 +204,11 @@
       "key": "task_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "profile_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {
@@ -11265,6 +11270,283 @@
               "path": [
                 "scheduled-tasks",
                 "{{task_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "a5a8c173-e036-4546-9dc9-1b7eee7d88c4",
+      "name": "Data Profiling",
+      "item": [
+        {
+          "id": "7b6cffe4-9e0b-4c4d-8cfd-72de30c85288",
+          "name": "Trigger Profile Run",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "profile"
+              ]
+            },
+            "description": "Trigger a profiling run. Include column_profiles to submit results immediately; leave empty to queue for worker.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"row_count\": 10000,\n  \"profile_data\": {\n    \"table_size_bytes\": 204800,\n    \"column_count\": 8\n  },\n  \"column_profiles\": [\n    {\n      \"column_name\": \"email\",\n      \"data_type\": \"varchar\",\n      \"null_count\": 5,\n      \"null_pct\": 0.01,\n      \"distinct_count\": 498,\n      \"min_val\": \"a@a.com\",\n      \"max_val\": \"z@z.com\",\n      \"mean_val\": null,\n      \"stddev_val\": null,\n      \"top_values\": [\n        {\n          \"value\": \"test@example.com\",\n          \"count\": 12\n        }\n      ],\n      \"histogram\": []\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "3e267617-40d2-4270-a91a-4c1753c4710c",
+          "name": "List Profile Runs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/profiles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "profiles"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "f8b01191-5aeb-401f-8bf0-95df0019372f",
+          "name": "Get Latest Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/profiles/latest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "profiles",
+                "latest"
+              ]
+            },
+            "description": "Returns latest successful profile run + all column profiles."
+          },
+          "response": []
+        },
+        {
+          "id": "12053d4e-f47f-4233-87e8-ba6724b66299",
+          "name": "Get Profile by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/profiles/{{profile_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "profiles",
+                "{{profile_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "3d4b864b-2174-4659-9557-d6c906f3a8aa",
+          "name": "Update Profile Run",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/profiles/{{profile_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "profiles",
+                "{{profile_id}}"
+              ]
+            },
+            "description": "Used by profiler bots to write results back into a pending/running profile.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"success\",\n  \"row_count\": 10500,\n  \"profile_data\": {\n    \"table_size_bytes\": 210000,\n    \"column_count\": 8\n  },\n  \"column_profiles\": [\n    {\n      \"column_name\": \"email\",\n      \"data_type\": \"varchar\",\n      \"null_count\": 5,\n      \"null_pct\": 0.01,\n      \"distinct_count\": 498,\n      \"min_val\": \"a@a.com\",\n      \"max_val\": \"z@z.com\",\n      \"mean_val\": null,\n      \"stddev_val\": null,\n      \"top_values\": [\n        {\n          \"value\": \"test@example.com\",\n          \"count\": 12\n        }\n      ],\n      \"histogram\": []\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "5bd74571-f62c-46fb-a5c1-c53fc81f64a8",
+          "name": "Delete Profile Run",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/profiles/{{profile_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "profiles",
+                "{{profile_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "2891c7eb-8a11-4452-8402-8a5e63c4d4d9",
+          "name": "List All Profiles (Org)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/profiles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "profiles"
+              ],
+              "query": [
+                {
+                  "key": "asset_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "triggered_by",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "262ada86-df03-412f-8541-d88c76816414",
+          "name": "Get Profile by ID (Org)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/profiles/{{profile_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "profiles",
+                "{{profile_id}}"
               ]
             },
             "description": ""
