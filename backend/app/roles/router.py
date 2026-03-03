@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db import get_session
 from app.auth.models import Policy, Role, User, user_roles
-from app.auth.schemas import MessageResponse, RoleCreate, RoleResponse, RoleUpdate, UserResponse
+from app.auth.schemas import MessageResponse, PolicyResponse, RoleCreate, RoleResponse, RoleUpdate, UserResponse
 from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
 from app.govern.models import team_roles, org_roles
 
@@ -240,11 +240,22 @@ async def list_role_users(
 
 
 # ---------------------------------------------------------------------------
-# Role ↔ Policy (per-item add/remove)
+# Role ↔ Policy (list / add / remove)
 # ---------------------------------------------------------------------------
 
 class BulkPolicyIds(BaseModel):
     policy_ids: List[uuid.UUID]
+
+
+@router.get("/{role_id}/policies", response_model=List[PolicyResponse], summary="List policies assigned to a role")
+async def list_role_policies(
+    role_id: uuid.UUID,
+    current_user=Depends(require_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return all policies currently assigned to the given role."""
+    role = await _get_role_or_404(role_id, get_active_org_id(current_user), session, load_policies=True)
+    return role.policies
 
 
 @router.post("/{role_id}/policies", response_model=MessageResponse, status_code=status.HTTP_201_CREATED, summary="Bulk assign policies to a role")
