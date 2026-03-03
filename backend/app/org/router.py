@@ -305,6 +305,60 @@ async def list_org_members(
     return result.scalars().all()
 
 
+class BulkAddMembersBody(BaseModel):
+    user_ids: List[uuid.UUID]
+    is_org_admin: bool = False
+
+
+@router.post(
+    "/orgs/{org_id}/members",
+    response_model=MessageResponse,
+    tags=["Organization"],
+    status_code=status.HTTP_201_CREATED,
+    summary="Bulk add users to an organization (org admin only)",
+)
+async def add_members_to_org(
+    org_id: uuid.UUID,
+    body: BulkAddMembersBody,
+    current_user=Depends(require_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Add one or more users to the organization at once."""
+    await _assert_org_admin(current_user.id, org_id, session)
+    await _get_org_or_404(org_id, session)
+    added = 0
+    for user_id in body.user_ids:
+        user_result = await session.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User {user_id} not found")
+        existing = await session.execute(
+            select(user_organizations).where(
+                user_organizations.c.user_id == user_id,
+                user_organizations.c.org_id == org_id,
+            )
+        )
+        row = existing.mappings().first()
+        if row:
+            if row["is_active"]:
+                continue
+            await session.execute(
+                update(user_organizations)
+                .where(user_organizations.c.user_id == user_id, user_organizations.c.org_id == org_id)
+                .values(is_active=True, is_org_admin=body.is_org_admin)
+            )
+        else:
+            await session.execute(
+                insert(user_organizations).values(
+                    id=uuid.uuid4(), user_id=user_id, org_id=org_id,
+                    is_org_admin=body.is_org_admin, is_active=True,
+                )
+            )
+        added += 1
+    await session.commit()
+    return MessageResponse(message=f"{added} user(s) added to organization")
+
+
 @router.post(
     "/orgs/{org_id}/members/{user_id}",
     response_model=MessageResponse,
@@ -639,22 +693,28 @@ async def list_org_roles(
     return [{"id": str(r.id), "name": r.name, "description": r.description} for r in roles]
 
 
-@router.post("/orgs/{org_id}/roles/{role_id}", status_code=status.HTTP_201_CREATED)
-async def assign_role_to_org(
+class BulkRoleIds(BaseModel):
+    role_ids: List[uuid.UUID]
+
+
+@router.post("/orgs/{org_id}/roles", status_code=status.HTTP_201_CREATED)
+async def assign_roles_to_org(
     org_id: uuid.UUID,
-    role_id: uuid.UUID,
+    body: BulkRoleIds,
     user: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ):
+    """Assign one or more roles to an organization at once."""
     await _assert_org_admin(user.id, org_id, db)
-    role = await db.execute(select(Role).where(Role.id == role_id, Role.org_id == org_id))
-    if not role.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Role not found in this organization")
-    await db.execute(
-        pg_insert(org_roles).values(org_id=org_id, role_id=role_id).on_conflict_do_nothing()
-    )
+    added = 0
+    for rid in body.role_ids:
+        role = await db.execute(select(Role).where(Role.id == rid, Role.org_id == org_id))
+        if not role.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail=f"Role {rid} not found in this organization")
+        await db.execute(pg_insert(org_roles).values(org_id=org_id, role_id=rid).on_conflict_do_nothing())
+        added += 1
     await db.commit()
-    return {"message": "Role assigned to organization"}
+    return {"message": f"{added} role(s) assigned to organization"}
 
 
 @router.delete("/orgs/{org_id}/roles/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -687,22 +747,28 @@ async def list_org_policies(
     return [{"id": str(p.id), "name": p.name, "resource": p.resource, "operations": p.operations} for p in policies]
 
 
-@router.post("/orgs/{org_id}/policies/{policy_id}", status_code=status.HTTP_201_CREATED)
-async def assign_policy_to_org(
+class BulkPolicyIds(BaseModel):
+    policy_ids: List[uuid.UUID]
+
+
+@router.post("/orgs/{org_id}/policies", status_code=status.HTTP_201_CREATED)
+async def assign_policies_to_org(
     org_id: uuid.UUID,
-    policy_id: uuid.UUID,
+    body: BulkPolicyIds,
     user: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ):
+    """Assign one or more policies to an organization at once."""
     await _assert_org_admin(user.id, org_id, db)
-    policy = await db.execute(select(Policy).where(Policy.id == policy_id, Policy.org_id == org_id))
-    if not policy.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Policy not found in this organization")
-    await db.execute(
-        pg_insert(org_policies).values(org_id=org_id, policy_id=policy_id).on_conflict_do_nothing()
-    )
+    added = 0
+    for pid in body.policy_ids:
+        policy = await db.execute(select(Policy).where(Policy.id == pid, Policy.org_id == org_id))
+        if not policy.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail=f"Policy {pid} not found in this organization")
+        await db.execute(pg_insert(org_policies).values(org_id=org_id, policy_id=pid).on_conflict_do_nothing())
+        added += 1
     await db.commit()
-    return {"message": "Policy assigned to organization"}
+    return {"message": f"{added} policy(ies) assigned to organization"}
 
 
 @router.delete("/orgs/{org_id}/policies/{policy_id}", status_code=status.HTTP_204_NO_CONTENT)

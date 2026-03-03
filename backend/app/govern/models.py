@@ -393,6 +393,8 @@ class ClassificationTag(Base):
     description = Column(Text, nullable=True)
     icon_url = Column(String(512), nullable=True)
     color = Column(String(50), nullable=True)
+    detection_patterns = Column(JSONB, nullable=False, default=list)
+    auto_classify = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)
     created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -518,6 +520,8 @@ class StorageConfig(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=True)
     provider = Column(String(50), nullable=False, default="minio")
+    # storage_type: minio | s3 | gcs | azure_blob
+    storage_type = Column(String(50), nullable=False, default="minio")
     endpoint = Column(String(512), nullable=True)
     bucket = Column(String(255), nullable=True)
     access_key = Column(String(255), nullable=True)
@@ -661,3 +665,38 @@ class DataAssetColumn(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     asset = relationship("DataAsset", back_populates="columns")
+
+
+# ---------------------------------------------------------------------------
+# Bot  (automated scanner/agent configuration)
+# ---------------------------------------------------------------------------
+
+class Bot(Base):
+    __tablename__ = "bots"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    # bot_type: metadata | profiler | lineage | usage | classification | search_index | test_suite | rdf_export | embedding
+    bot_type = Column(String(50), nullable=False)
+    # mode: self (built-in agent code) | external (LLM API via service_endpoint)
+    mode = Column(String(20), nullable=False, default="self")
+    is_enabled = Column(Boolean, nullable=False, default=False)
+    # trigger_mode: on_demand | scheduled
+    trigger_mode = Column(String(20), nullable=False, default="on_demand")
+    cron_expr = Column(String(100), nullable=True)
+    # external mode: FK to service_endpoints holding base_url + api_key
+    service_endpoint_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.service_endpoints.id", ondelete="SET NULL"), nullable=True)
+    # external mode: LLM model name (e.g. gpt-4o, claude-3-5-sonnet)
+    model_name = Column(String(100), nullable=True)
+    last_run_at = Column(DateTime(timezone=True), nullable=True)
+    # last_run_status: running | success | failed
+    last_run_status = Column(String(20), nullable=True)
+    last_run_message = Column(Text, nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    service_endpoint = relationship("ServiceEndpoint", foreign_keys=[service_endpoint_id])

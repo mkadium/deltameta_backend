@@ -194,6 +194,11 @@
       "key": "tag_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "bot_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {
@@ -1137,33 +1142,6 @@
           "response": []
         },
         {
-          "id": "0e0cf315-c7fb-4500-8d53-133b0b6a2653",
-          "name": "Assign Role to Team",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/teams/{{team_id}}/roles/{{role_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "teams",
-                "{{team_id}}",
-                "roles",
-                "{{role_id}}"
-              ]
-            },
-            "description": ""
-          },
-          "response": []
-        },
-        {
           "id": "0ccc83f6-8125-4eef-abc9-941a59c0c70a",
           "name": "Remove Role from Team",
           "request": {
@@ -1217,33 +1195,6 @@
           "response": []
         },
         {
-          "id": "1f9822f4-1a3e-4d35-8521-649a67feb635",
-          "name": "Assign Policy to Team",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/teams/{{team_id}}/policies/{{policy_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "teams",
-                "{{team_id}}",
-                "policies",
-                "{{policy_id}}"
-              ]
-            },
-            "description": ""
-          },
-          "response": []
-        },
-        {
           "id": "ac7d064a-5f78-4d3c-887d-8c213022e3f3",
           "name": "Remove Policy from Team",
           "request": {
@@ -1267,6 +1218,216 @@
               ]
             },
             "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "4eca1151-311b-4b34-bdca-84bab9ef7e88",
+          "name": "Add Members (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}/members",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}",
+                "members"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{user_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "8a280b6a-1411-40aa-a5a7-6b672269529e",
+          "name": "Assign Roles to Team (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}",
+                "roles"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role_ids\": [\n    \"{{role_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "0761615e-a4fe-456c-99a2-7be17463b556",
+          "name": "Assign Policies to Team (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}/policies",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}",
+                "policies"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"policy_ids\": [\n    \"{{policy_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "4e670957-b625-48f0-8c6e-f39ff17477d7",
+          "name": "Add Members (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}/members",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}",
+                "members"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{user_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "df80a5bd-6e2a-4406-8170-3d3f115097cc",
+          "name": "Assign Roles to Team (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}",
+                "roles"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role_ids\": [\n    \"{{role_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "4115ebc8-9a72-4be9-b5f5-c454cf5679a3",
+          "name": "Assign Policies to Team (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/teams/{{team_id}}/policies",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "teams",
+                "{{team_id}}",
+                "policies"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"policy_ids\": [\n    \"{{policy_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": []
         }
@@ -1511,33 +1672,6 @@
           "response": []
         },
         {
-          "id": "58ab4e2d-7dc9-4eaf-ab92-e62eb8ece215",
-          "name": "Assign Policy to User",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/policies/{{policy_id}}/assign/{{user_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "policies",
-                "{{policy_id}}",
-                "assign",
-                "{{user_id}}"
-              ]
-            },
-            "description": "Directly assign a policy to a user (bypassing roles). Org admin only."
-          },
-          "response": []
-        },
-        {
           "id": "9a1fa86c-8b70-498e-bc40-c07ea53659c2",
           "name": "Remove Policy from User",
           "request": {
@@ -1587,6 +1721,76 @@
               ]
             },
             "description": "List all policies directly assigned to a specific user."
+          },
+          "response": []
+        },
+        {
+          "id": "833041fb-1b7a-4210-b9a8-608ec00e8a14",
+          "name": "Assign Policy to Users (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/policies/{{policy_id}}/assign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "policies",
+                "{{policy_id}}",
+                "assign"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{user_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "5b633d1a-2fdd-45b0-ae73-05fbc5539b95",
+          "name": "Assign Policy to Users (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/policies/{{policy_id}}/assign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "policies",
+                "{{policy_id}}",
+                "assign"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{user_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": []
         }
@@ -1857,6 +2061,146 @@
               }
             }
           ]
+        },
+        {
+          "id": "e7080dcb-b50e-4855-b04c-eb56de38cff7",
+          "name": "Assign Role to Users (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles/{{role_id}}/assign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "roles",
+                "{{role_id}}",
+                "assign"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{user_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "cdbbefa3-2edf-4047-89bd-197fb16b611b",
+          "name": "Add Policies to Role (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles/{{role_id}}/policies",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "roles",
+                "{{role_id}}",
+                "policies"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"policy_ids\": [\n    \"{{policy_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "3387e080-37d5-431c-9863-9924146f5a0e",
+          "name": "Assign Role to Users (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles/{{role_id}}/assign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "roles",
+                "{{role_id}}",
+                "assign"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{user_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "6bf62917-a701-4e00-8218-3acbd7ac0b94",
+          "name": "Add Policies to Role (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles/{{role_id}}/policies",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "roles",
+                "{{role_id}}",
+                "policies"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"policy_ids\": [\n    \"{{policy_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -2337,41 +2681,6 @@
           ]
         },
         {
-          "name": "Assign Role to Org",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/orgs/{{org_id}}/roles/{{role_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "orgs",
-                "{{org_id}}",
-                "roles",
-                "{{role_id}}"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "Remove Role from Org",
           "request": {
             "method": "DELETE",
@@ -2441,41 +2750,6 @@
           ]
         },
         {
-          "name": "Assign Policy to Org",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/orgs/{{org_id}}/policies/{{policy_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "orgs",
-                "{{org_id}}",
-                "policies",
-                "{{policy_id}}"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "Remove Policy from Org",
           "request": {
             "method": "DELETE",
@@ -2509,6 +2783,111 @@
               }
             }
           ]
+        },
+        {
+          "id": "60a30273-1dcb-4554-8fd6-9ea86ae5b5d0",
+          "name": "Add Members to Org (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orgs/{{org_id}}/members",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orgs",
+                "{{org_id}}",
+                "members"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{user_id}}\"\n  ],\n  \"is_org_admin\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "8e53ee48-2d23-4c0b-a8ff-4275d6fd7662",
+          "name": "Assign Roles to Org (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orgs/{{org_id}}/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orgs",
+                "{{org_id}}",
+                "roles"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role_ids\": [\n    \"{{role_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "ffe0f0db-a796-4b4f-9d8f-d6cddcaa62a0",
+          "name": "Assign Policies to Org (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orgs/{{org_id}}/policies",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orgs",
+                "{{org_id}}",
+                "policies"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"policy_ids\": [\n    \"{{policy_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -9123,33 +9502,6 @@
           "response": []
         },
         {
-          "id": "c4906ef2-c0fc-4db0-a6bf-c0c86f758747",
-          "name": "Add Dataset Owner",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/datasets/{{dataset_id}}/owners/{{user_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "datasets",
-                "{{dataset_id}}",
-                "owners",
-                "{{user_id}}"
-              ]
-            },
-            "description": "Assign a user as owner of a dataset."
-          },
-          "response": []
-        },
-        {
           "id": "8fd68b7c-cc8c-4e6d-9dd5-ef52406eaaf9",
           "name": "Remove Dataset Owner",
           "request": {
@@ -9177,33 +9529,6 @@
           "response": []
         },
         {
-          "id": "3dc906b4-f13e-4bc7-90cd-b8acbb78069b",
-          "name": "Add Dataset Expert",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/datasets/{{dataset_id}}/experts/{{user_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "datasets",
-                "{{dataset_id}}",
-                "experts",
-                "{{user_id}}"
-              ]
-            },
-            "description": "Assign a user as expert/SME of a dataset."
-          },
-          "response": []
-        },
-        {
           "id": "f6a0e7b0-f984-4d8c-9787-3738d6d2d75d",
           "name": "Remove Dataset Expert",
           "request": {
@@ -9227,6 +9552,146 @@
               ]
             },
             "description": "Remove a user as expert of a dataset."
+          },
+          "response": []
+        },
+        {
+          "id": "71a8975a-0d55-4181-8992-c2b3dba07872",
+          "name": "Add Dataset Owners (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/datasets/{{dataset_id}}/owners",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "datasets",
+                "{{dataset_id}}",
+                "owners"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{user_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "21bf2692-7de8-4f17-99d6-5a0b5b22b2ed",
+          "name": "Add Dataset Experts (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/datasets/{{dataset_id}}/experts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "datasets",
+                "{{dataset_id}}",
+                "experts"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{user_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "96257dfb-fae1-438f-848c-244a8b352aa3",
+          "name": "Add Dataset Owners (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/datasets/{{dataset_id}}/owners",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "datasets",
+                "{{dataset_id}}",
+                "owners"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{user_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "21d32f46-5c15-4a56-b695-2df3318402c5",
+          "name": "Add Dataset Experts (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/datasets/{{dataset_id}}/experts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "datasets",
+                "{{dataset_id}}",
+                "experts"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{user_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": []
         }
@@ -9459,33 +9924,6 @@
           "response": []
         },
         {
-          "id": "b774c5d0-26ab-465e-97ee-5b0ebf177cc3",
-          "name": "Add Asset Tag",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/data-assets/{{asset_id}}/tags/{{tag_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "data-assets",
-                "{{asset_id}}",
-                "tags",
-                "{{tag_id}}"
-              ]
-            },
-            "description": "Assign a classification tag to a data asset."
-          },
-          "response": []
-        },
-        {
           "id": "0a070da9-ce16-4f46-b4f1-d5781cf59908",
           "name": "Remove Asset Tag",
           "request": {
@@ -9513,33 +9951,6 @@
           "response": []
         },
         {
-          "id": "9797251e-5711-4ebc-af45-4118ba86b202",
-          "name": "Add Asset Owner",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/data-assets/{{asset_id}}/owners/{{user_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "data-assets",
-                "{{asset_id}}",
-                "owners",
-                "{{user_id}}"
-              ]
-            },
-            "description": "Assign a user as owner of a data asset."
-          },
-          "response": []
-        },
-        {
           "id": "958fa35e-d6b7-4db7-bfde-89152cce2b93",
           "name": "Remove Asset Owner",
           "request": {
@@ -9563,33 +9974,6 @@
               ]
             },
             "description": "Remove a user as owner of a data asset."
-          },
-          "response": []
-        },
-        {
-          "id": "d9e57879-6504-492c-8f87-991150b0cbaf",
-          "name": "Add Asset Expert",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/data-assets/{{asset_id}}/experts/{{user_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "data-assets",
-                "{{asset_id}}",
-                "experts",
-                "{{user_id}}"
-              ]
-            },
-            "description": "Assign a user as expert/SME of a data asset."
           },
           "response": []
         },
@@ -9809,6 +10193,504 @@
                 }
               }
             }
+          },
+          "response": []
+        },
+        {
+          "id": "b4afc577-c32f-4bfa-adda-c5fa5ce9cc1d",
+          "name": "Add Asset Owners (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/owners",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "owners"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{user_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "a056f206-2d25-4c42-9b7d-31639f592e5f",
+          "name": "Add Asset Experts (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/experts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "experts"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{user_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "f424d989-fbe7-4c1d-b700-f4a4c11ef690",
+          "name": "Add Asset Tags (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/tags",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "tags"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tag_ids\": [\n    \"{{tag_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "c88aefea-1715-4ef5-9b94-ac5d4123c7d8",
+          "name": "Add Asset Owners (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/owners",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "owners"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{user_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "2cb84be8-9636-4de2-9714-fa8bff739db3",
+          "name": "Add Asset Experts (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/experts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "experts"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{user_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "f0986a7d-6b5c-4a23-b161-da4910f5b022",
+          "name": "Add Asset Tags (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/tags",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "tags"
+              ]
+            },
+            "description": "Bulk version: accepts array in request body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tag_ids\": [\n    \"{{tag_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "162d430d-5535-4fec-9aae-a4aebd694b20",
+      "name": "Bots",
+      "item": [
+        {
+          "id": "fcc08033-5288-4ea5-a972-8b561923ba29",
+          "name": "List Bots",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bots",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "bots"
+              ],
+              "query": [
+                {
+                  "key": "bot_type",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "mode",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "is_enabled",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "trigger_mode",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "List all bots for the org. Filterable by type, mode, enabled state."
+          },
+          "response": []
+        },
+        {
+          "id": "090a9a36-e8c9-4e6a-8558-5e8bcb524226",
+          "name": "Create Bot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bots",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "bots"
+              ]
+            },
+            "description": "Create a new bot config. bot_type: metadata|profiler|lineage|usage|classification|search_index|test_suite|rdf_export|embedding. mode: self|external. trigger_mode: on_demand|scheduled.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postgres Metadata Bot\",\n  \"description\": \"Scans external Postgres for tables, views, columns\",\n  \"bot_type\": \"metadata\",\n  \"mode\": \"self\",\n  \"trigger_mode\": \"scheduled\",\n  \"cron_expr\": \"0 2 * * *\",\n  \"service_endpoint_id\": null,\n  \"model_name\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "108b41ce-b72f-4e9e-b204-97b1faa0aa9a",
+          "name": "Get Bot",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bots/{{bot_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "bots",
+                "{{bot_id}}"
+              ]
+            },
+            "description": "Get bot by ID."
+          },
+          "response": []
+        },
+        {
+          "id": "ca8772e8-bcb2-4289-af1f-6c0594e297ce",
+          "name": "Update Bot",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bots/{{bot_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "bots",
+                "{{bot_id}}"
+              ]
+            },
+            "description": "Update bot configuration.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trigger_mode\": \"scheduled\",\n  \"cron_expr\": \"0 3 * * *\",\n  \"mode\": \"external\",\n  \"service_endpoint_id\": \"{{service_endpoint_id}}\",\n  \"model_name\": \"gpt-4o\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "d5b60c36-f4df-44a9-8203-e0dd9c81a771",
+          "name": "Delete Bot",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bots/{{bot_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "bots",
+                "{{bot_id}}"
+              ]
+            },
+            "description": "Delete bot."
+          },
+          "response": []
+        },
+        {
+          "id": "384f28be-e75b-4768-8f55-7991857f8043",
+          "name": "Enable Bot",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bots/{{bot_id}}/enable",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "bots",
+                "{{bot_id}}",
+                "enable"
+              ]
+            },
+            "description": "Enable the bot (set is_enabled=true)."
+          },
+          "response": []
+        },
+        {
+          "id": "1074d724-294f-454f-be7d-e47d0b9269fa",
+          "name": "Disable Bot",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bots/{{bot_id}}/disable",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "bots",
+                "{{bot_id}}",
+                "disable"
+              ]
+            },
+            "description": "Disable the bot (set is_enabled=false)."
+          },
+          "response": []
+        },
+        {
+          "id": "7bd68435-4338-4d5d-908e-90722d227bba",
+          "name": "Run Bot (On-demand)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bots/{{bot_id}}/run",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "bots",
+                "{{bot_id}}",
+                "run"
+              ]
+            },
+            "description": "Trigger an on-demand run for an enabled bot. Returns triggered_at timestamp."
+          },
+          "response": []
+        },
+        {
+          "id": "59344081-8730-45de-a1e3-fdc68b322ff8",
+          "name": "List Bot Runs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bots/{{bot_id}}/runs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "bots",
+                "{{bot_id}}",
+                "runs"
+              ]
+            },
+            "description": "Get latest run status for a bot."
           },
           "response": []
         }

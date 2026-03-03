@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -164,28 +165,32 @@ async def delete_role(
 # Role Assignment
 # ---------------------------------------------------------------------------
 
-@router.post("/{role_id}/assign/{user_id}", response_model=MessageResponse, summary="Assign a role to a user")
-async def assign_role_to_user(
+class BulkUserIds(BaseModel):
+    user_ids: List[uuid.UUID]
+
+
+@router.post("/{role_id}/assign", response_model=MessageResponse, status_code=status.HTTP_201_CREATED, summary="Bulk assign a role to users")
+async def assign_role_to_users(
     role_id: uuid.UUID,
-    user_id: uuid.UUID,
+    body: BulkUserIds,
     current_user=Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
+    """Assign this role to one or more users at once."""
     role = await _get_role_or_404(role_id, get_active_org_id(current_user), session)
-
-    user_result = await session.execute(
-        select(User).where(User.id == user_id, User.org_id == get_active_org_id(current_user)).options(selectinload(User.roles))
-    )
-    user = user_result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-    if any(r.id == role_id for r in user.roles):
-        return MessageResponse(message="User already has this role")
-
-    user.roles.append(role)
+    assigned = []
+    for uid in body.user_ids:
+        user_result = await session.execute(
+            select(User).where(User.id == uid, User.org_id == get_active_org_id(current_user)).options(selectinload(User.roles))
+        )
+        user = user_result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User {uid} not found")
+        if not any(r.id == role_id for r in user.roles):
+            user.roles.append(role)
+            assigned.append(str(uid))
     await session.commit()
-    return MessageResponse(message=f"Role '{role.name}' assigned to user '{user.name}'")
+    return MessageResponse(message=f"Role '{role.name}' assigned to {len(assigned)} user(s)")
 
 
 @router.delete("/{role_id}/assign/{user_id}", response_model=MessageResponse, summary="Remove a role from a user")
@@ -238,26 +243,31 @@ async def list_role_users(
 # Role ↔ Policy (per-item add/remove)
 # ---------------------------------------------------------------------------
 
-@router.post("/{role_id}/policies/{policy_id}", response_model=MessageResponse, status_code=status.HTTP_201_CREATED, summary="Add a policy to a role")
-async def add_policy_to_role(
+class BulkPolicyIds(BaseModel):
+    policy_ids: List[uuid.UUID]
+
+
+@router.post("/{role_id}/policies", response_model=MessageResponse, status_code=status.HTTP_201_CREATED, summary="Bulk assign policies to a role")
+async def add_policies_to_role(
     role_id: uuid.UUID,
-    policy_id: uuid.UUID,
+    body: BulkPolicyIds,
     current_user=Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
+    """Assign one or more policies to this role at once."""
     active_org = get_active_org_id(current_user)
     role = await _get_role_or_404(role_id, active_org, session, load_policies=True)
     if role.is_system_role:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="System roles cannot be modified")
-    policy = (await session.execute(select(Policy).where(Policy.id == policy_id, Policy.org_id == active_org))).scalar_one_or_none()
-    if not policy:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy not found in this organization")
-    if any(p.id == policy_id for p in role.policies):
-        return MessageResponse(message="Policy already assigned to this role")
-    role.policies.append(policy)
+    policies = await _load_policies(body.policy_ids, active_org, session)
+    added = 0
+    for policy in policies:
+        if not any(p.id == policy.id for p in role.policies):
+            role.policies.append(policy)
+            added += 1
     role.updated_at = datetime.now(timezone.utc)
     await session.commit()
-    return MessageResponse(message=f"Policy '{policy.name}' added to role '{role.name}'")
+    return MessageResponse(message=f"{added} policy(ies) added to role '{role.name}'")
 
 
 @router.delete("/{role_id}/policies/{policy_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove a policy from a role")

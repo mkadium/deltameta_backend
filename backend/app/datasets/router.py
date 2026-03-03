@@ -264,25 +264,31 @@ async def delete_dataset(
     await db.commit()
 
 
-# ── Owner / Expert assignment ──────────────────────────────────────────────────
+# ── Owner / Expert bulk assignment ───────────────────────────────────────────
 
-@router.post("/{dataset_id}/owners/{user_id}", status_code=status.HTTP_201_CREATED)
-async def add_dataset_owner(
+class BulkUserIds(BaseModel):
+    user_ids: List[uuid.UUID]
+
+
+@router.post("/{dataset_id}/owners", status_code=status.HTTP_201_CREATED)
+async def add_dataset_owners(
     dataset_id: uuid.UUID,
-    user_id: uuid.UUID,
+    body: BulkUserIds,
     admin: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ):
+    """Assign one or more owners to a dataset at once."""
     active_org = get_active_org_id(admin)
     await _get_dataset_or_404(dataset_id, active_org, db)
-    target = await db.get(User, user_id)
-    if not target or target.org_id != active_org:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found in this org")
-    await db.execute(
-        pg_insert(dataset_owners).values(dataset_id=dataset_id, user_id=user_id).on_conflict_do_nothing()
-    )
+    for uid in body.user_ids:
+        target = await db.get(User, uid)
+        if not target or target.org_id != active_org:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User {uid} not found in this org")
+        await db.execute(
+            pg_insert(dataset_owners).values(dataset_id=dataset_id, user_id=uid).on_conflict_do_nothing()
+        )
     await db.commit()
-    return {"message": "Owner added"}
+    return {"message": f"{len(body.user_ids)} owner(s) added"}
 
 
 @router.delete("/{dataset_id}/owners/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -303,23 +309,25 @@ async def remove_dataset_owner(
     await db.commit()
 
 
-@router.post("/{dataset_id}/experts/{user_id}", status_code=status.HTTP_201_CREATED)
-async def add_dataset_expert(
+@router.post("/{dataset_id}/experts", status_code=status.HTTP_201_CREATED)
+async def add_dataset_experts(
     dataset_id: uuid.UUID,
-    user_id: uuid.UUID,
+    body: BulkUserIds,
     admin: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ):
+    """Assign one or more experts to a dataset at once."""
     active_org = get_active_org_id(admin)
     await _get_dataset_or_404(dataset_id, active_org, db)
-    target = await db.get(User, user_id)
-    if not target or target.org_id != active_org:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found in this org")
-    await db.execute(
-        pg_insert(dataset_experts).values(dataset_id=dataset_id, user_id=user_id).on_conflict_do_nothing()
-    )
+    for uid in body.user_ids:
+        target = await db.get(User, uid)
+        if not target or target.org_id != active_org:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User {uid} not found in this org")
+        await db.execute(
+            pg_insert(dataset_experts).values(dataset_id=dataset_id, user_id=uid).on_conflict_do_nothing()
+        )
     await db.commit()
-    return {"message": "Expert added"}
+    return {"message": f"{len(body.user_ids)} expert(s) added"}
 
 
 @router.delete("/{dataset_id}/experts/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

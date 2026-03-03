@@ -396,27 +396,37 @@ async def delete_data_asset(
     await db.commit()
 
 
-# ── Tag assignment ─────────────────────────────────────────────────────────────
+# ── Tag / Owner / Expert bulk assignment ──────────────────────────────────────
 
-@router.post("/{asset_id}/tags/{tag_id}", status_code=status.HTTP_201_CREATED)
-async def add_asset_tag(
+class BulkTagIds(BaseModel):
+    tag_ids: List[uuid.UUID]
+
+
+class BulkUserIds(BaseModel):
+    user_ids: List[uuid.UUID]
+
+
+@router.post("/{asset_id}/tags", status_code=status.HTTP_201_CREATED)
+async def add_asset_tags(
     asset_id: uuid.UUID,
-    tag_id: uuid.UUID,
+    body: BulkTagIds,
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
+    """Assign one or more classification tags to a data asset at once."""
     active_org = get_active_org_id(user)
     await _get_asset_or_404(asset_id, active_org, db)
-    tag = await db.execute(
-        select(ClassificationTag).where(ClassificationTag.id == tag_id, ClassificationTag.org_id == active_org)
-    )
-    if not tag.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classification tag not found in this org")
-    await db.execute(
-        pg_insert(data_asset_tags).values(asset_id=asset_id, tag_id=tag_id).on_conflict_do_nothing()
-    )
+    for tid in body.tag_ids:
+        tag = await db.execute(
+            select(ClassificationTag).where(ClassificationTag.id == tid, ClassificationTag.org_id == active_org)
+        )
+        if not tag.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Classification tag {tid} not found in this org")
+        await db.execute(
+            pg_insert(data_asset_tags).values(asset_id=asset_id, tag_id=tid).on_conflict_do_nothing()
+        )
     await db.commit()
-    return {"message": "Tag assigned to asset"}
+    return {"message": f"{len(body.tag_ids)} tag(s) assigned to asset"}
 
 
 @router.delete("/{asset_id}/tags/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -437,25 +447,25 @@ async def remove_asset_tag(
     await db.commit()
 
 
-# ── Owner / Expert assignment ──────────────────────────────────────────────────
-
-@router.post("/{asset_id}/owners/{user_id}", status_code=status.HTTP_201_CREATED)
-async def add_asset_owner(
+@router.post("/{asset_id}/owners", status_code=status.HTTP_201_CREATED)
+async def add_asset_owners(
     asset_id: uuid.UUID,
-    user_id: uuid.UUID,
+    body: BulkUserIds,
     admin: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ):
+    """Assign one or more owners to a data asset at once."""
     active_org = get_active_org_id(admin)
     await _get_asset_or_404(asset_id, active_org, db)
-    target = await db.get(User, user_id)
-    if not target or target.org_id != active_org:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found in this org")
-    await db.execute(
-        pg_insert(data_asset_owners).values(asset_id=asset_id, user_id=user_id).on_conflict_do_nothing()
-    )
+    for uid in body.user_ids:
+        target = await db.get(User, uid)
+        if not target or target.org_id != active_org:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User {uid} not found in this org")
+        await db.execute(
+            pg_insert(data_asset_owners).values(asset_id=asset_id, user_id=uid).on_conflict_do_nothing()
+        )
     await db.commit()
-    return {"message": "Owner added"}
+    return {"message": f"{len(body.user_ids)} owner(s) added"}
 
 
 @router.delete("/{asset_id}/owners/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -476,23 +486,25 @@ async def remove_asset_owner(
     await db.commit()
 
 
-@router.post("/{asset_id}/experts/{user_id}", status_code=status.HTTP_201_CREATED)
-async def add_asset_expert(
+@router.post("/{asset_id}/experts", status_code=status.HTTP_201_CREATED)
+async def add_asset_experts(
     asset_id: uuid.UUID,
-    user_id: uuid.UUID,
+    body: BulkUserIds,
     admin: User = Depends(require_org_admin),
     db: AsyncSession = Depends(get_session),
 ):
+    """Assign one or more experts to a data asset at once."""
     active_org = get_active_org_id(admin)
     await _get_asset_or_404(asset_id, active_org, db)
-    target = await db.get(User, user_id)
-    if not target or target.org_id != active_org:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found in this org")
-    await db.execute(
-        pg_insert(data_asset_experts).values(asset_id=asset_id, user_id=user_id).on_conflict_do_nothing()
-    )
+    for uid in body.user_ids:
+        target = await db.get(User, uid)
+        if not target or target.org_id != active_org:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User {uid} not found in this org")
+        await db.execute(
+            pg_insert(data_asset_experts).values(asset_id=asset_id, user_id=uid).on_conflict_do_nothing()
+        )
     await db.commit()
-    return {"message": "Expert added"}
+    return {"message": f"{len(body.user_ids)} expert(s) added"}
 
 
 @router.delete("/{asset_id}/experts/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

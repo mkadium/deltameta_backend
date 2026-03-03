@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -254,31 +255,36 @@ async def list_policy_users(
     return [{"id": str(u.id), "name": u.name, "email": u.email, "username": u.username} for u in users]
 
 
+class BulkUserIds(BaseModel):
+    user_ids: List[uuid.UUID]
+
+
 @router.post(
-    "/{policy_id}/assign/{user_id}",
+    "/{policy_id}/assign",
     response_model=MessageResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Assign a policy directly to a user",
+    summary="Bulk assign a policy directly to users",
 )
-async def assign_policy_to_user(
+async def assign_policy_to_users(
     policy_id: uuid.UUID,
-    user_id: uuid.UUID,
+    body: BulkUserIds,
     current_user=Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
+    """Assign this policy to one or more users at once."""
     policy = await _get_policy_or_404(policy_id, get_active_org_id(current_user), session)
-    user = await _get_user_in_org(user_id, get_active_org_id(current_user), session)
-
-    if any(p.id == policy_id for p in user.policies):
-        return MessageResponse(message="User already has this policy")
-
-    await session.execute(
-        pg_insert(user_policies)
-        .values(user_id=user_id, policy_id=policy_id)
-        .on_conflict_do_nothing()
-    )
+    assigned = 0
+    for uid in body.user_ids:
+        user = await _get_user_in_org(uid, get_active_org_id(current_user), session)
+        if not any(p.id == policy_id for p in user.policies):
+            await session.execute(
+                pg_insert(user_policies)
+                .values(user_id=uid, policy_id=policy_id)
+                .on_conflict_do_nothing()
+            )
+            assigned += 1
     await session.commit()
-    return MessageResponse(message=f"Policy '{policy.name}' assigned to user '{user.name}'")
+    return MessageResponse(message=f"Policy '{policy.name}' assigned to {assigned} user(s)")
 
 
 @router.delete(

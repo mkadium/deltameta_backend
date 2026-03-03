@@ -77,12 +77,29 @@ class ClassificationOut(BaseModel):
         from_attributes = True
 
 
+class DetectionPattern(BaseModel):
+    """
+    A single rule used by the Classification Bot to auto-detect and apply this tag.
+
+    type:
+      - column_name  — match column name against pattern (exact or contains)
+      - regex        — match regex against column name or sample data values
+      - data_sample  — match regex against sampled column values
+    confidence: 0.0–1.0, higher = more certain
+    """
+    type: str  # column_name | regex | data_sample
+    pattern: str
+    confidence: float = 1.0
+
+
 class TagCreate(BaseModel):
     name: str
     display_name: Optional[str] = None
     description: Optional[str] = None
     icon_url: Optional[str] = None
     color: Optional[str] = None
+    detection_patterns: List[DetectionPattern] = []
+    auto_classify: bool = False
     owner_ids: List[uuid.UUID] = []
     domain_ids: List[uuid.UUID] = []
 
@@ -93,6 +110,8 @@ class TagUpdate(BaseModel):
     description: Optional[str] = None
     icon_url: Optional[str] = None
     color: Optional[str] = None
+    detection_patterns: Optional[List[DetectionPattern]] = None
+    auto_classify: Optional[bool] = None
     owner_ids: Optional[List[uuid.UUID]] = None
     domain_ids: Optional[List[uuid.UUID]] = None
     is_active: Optional[bool] = None
@@ -107,6 +126,8 @@ class TagOut(BaseModel):
     description: Optional[str]
     icon_url: Optional[str]
     color: Optional[str]
+    detection_patterns: List[dict] = []
+    auto_classify: bool
     is_active: bool
     created_by: Optional[uuid.UUID]
     created_at: Optional[datetime]
@@ -278,6 +299,7 @@ async def create_tag(
     if not cls or cls.org_id != get_active_org_id(user):
         raise HTTPException(status_code=404, detail="Classification not found")
     payload = body.model_dump(exclude={"owner_ids", "domain_ids"})
+    payload["detection_patterns"] = [p.model_dump() for p in body.detection_patterns]
     tag = ClassificationTag(
         classification_id=classification_id, org_id=get_active_org_id(user), created_by=user.id, **payload
     )
@@ -321,6 +343,8 @@ async def update_tag(
     data = body.model_dump(exclude_unset=True)
     owner_ids = data.pop("owner_ids", None)
     domain_ids = data.pop("domain_ids", None)
+    if "detection_patterns" in data and body.detection_patterns is not None:
+        data["detection_patterns"] = [p.model_dump() for p in body.detection_patterns]
     for k, v in data.items():
         setattr(tag, k, v)
     if owner_ids is not None:

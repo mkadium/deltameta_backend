@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -244,33 +245,37 @@ async def list_members(
     return team.members
 
 
-@router.post("/{team_id}/members/{user_id}", response_model=MessageResponse, summary="Add a user to a team")
-async def add_member(
+class BulkUserIds(BaseModel):
+    user_ids: List[uuid.UUID]
+
+
+@router.post("/{team_id}/members", response_model=MessageResponse, status_code=status.HTTP_201_CREATED, summary="Bulk add users to a team")
+async def add_members(
     team_id: uuid.UUID,
-    user_id: uuid.UUID,
+    body: BulkUserIds,
     current_user=Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
+    """Add one or more users to a team at once."""
     active_org = get_active_org_id(current_user)
-    team = await _get_team_or_404(team_id, active_org, session)
-    user_result = await session.execute(
-        select(User).where(User.id == user_id, User.org_id == active_org)
-    )
-    user = user_result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-    # Reload team with members to check duplicates
+    await _get_team_or_404(team_id, active_org, session)
     team_with_members = await session.execute(
         select(Team).where(Team.id == team_id).options(selectinload(Team.members))
     )
     team_obj = team_with_members.scalar_one()
-    if any(m.id == user_id for m in team_obj.members):
-        return MessageResponse(message="User is already a member of this team")
-
-    team_obj.members.append(user)
+    added = 0
+    for uid in body.user_ids:
+        user_result = await session.execute(
+            select(User).where(User.id == uid, User.org_id == active_org)
+        )
+        user = user_result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User {uid} not found")
+        if not any(m.id == uid for m in team_obj.members):
+            team_obj.members.append(user)
+            added += 1
     await session.commit()
-    return MessageResponse(message=f"User '{user.name}' added to team '{team.name}'")
+    return MessageResponse(message=f"{added} user(s) added to team '{team_obj.name}'")
 
 
 @router.delete("/{team_id}/members/{user_id}", response_model=MessageResponse, summary="Remove a user from a team")
@@ -340,23 +345,31 @@ async def list_team_roles(
     return [{"id": str(r.id), "name": r.name, "description": r.description} for r in roles]
 
 
-@router.post("/{team_id}/roles/{role_id}", status_code=status.HTTP_201_CREATED)
-async def assign_role_to_team(
+class BulkRoleIds(BaseModel):
+    role_ids: List[uuid.UUID]
+
+
+@router.post("/{team_id}/roles", status_code=status.HTTP_201_CREATED)
+async def assign_roles_to_team(
     team_id: uuid.UUID,
-    role_id: uuid.UUID,
+    body: BulkRoleIds,
     current_user: User = Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
+    """Assign one or more roles to a team at once."""
     active_org = get_active_org_id(current_user)
     await _get_team_or_404(team_id, active_org, session)
-    role = (await session.execute(select(Role).where(Role.id == role_id, Role.org_id == active_org))).scalar_one_or_none()
-    if not role:
-        raise HTTPException(status_code=404, detail="Role not found in this organization")
-    await session.execute(
-        pg_insert(team_roles).values(team_id=team_id, role_id=role_id).on_conflict_do_nothing()
-    )
+    added = 0
+    for rid in body.role_ids:
+        role = (await session.execute(select(Role).where(Role.id == rid, Role.org_id == active_org))).scalar_one_or_none()
+        if not role:
+            raise HTTPException(status_code=404, detail=f"Role {rid} not found in this organization")
+        await session.execute(
+            pg_insert(team_roles).values(team_id=team_id, role_id=rid).on_conflict_do_nothing()
+        )
+        added += 1
     await session.commit()
-    return {"message": "Role assigned to team"}
+    return {"message": f"{added} role(s) assigned to team"}
 
 
 @router.delete("/{team_id}/roles/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -388,23 +401,31 @@ async def list_team_policies(
     return [{"id": str(p.id), "name": p.name, "resource": p.resource, "operations": p.operations} for p in policies]
 
 
-@router.post("/{team_id}/policies/{policy_id}", status_code=status.HTTP_201_CREATED)
-async def assign_policy_to_team(
+class BulkPolicyIds(BaseModel):
+    policy_ids: List[uuid.UUID]
+
+
+@router.post("/{team_id}/policies", status_code=status.HTTP_201_CREATED)
+async def assign_policies_to_team(
     team_id: uuid.UUID,
-    policy_id: uuid.UUID,
+    body: BulkPolicyIds,
     current_user: User = Depends(require_org_admin),
     session: AsyncSession = Depends(get_session),
 ):
+    """Assign one or more policies to a team at once."""
     active_org = get_active_org_id(current_user)
     await _get_team_or_404(team_id, active_org, session)
-    policy = (await session.execute(select(Policy).where(Policy.id == policy_id, Policy.org_id == active_org))).scalar_one_or_none()
-    if not policy:
-        raise HTTPException(status_code=404, detail="Policy not found in this organization")
-    await session.execute(
-        pg_insert(team_policies).values(team_id=team_id, policy_id=policy_id).on_conflict_do_nothing()
-    )
+    added = 0
+    for pid in body.policy_ids:
+        policy = (await session.execute(select(Policy).where(Policy.id == pid, Policy.org_id == active_org))).scalar_one_or_none()
+        if not policy:
+            raise HTTPException(status_code=404, detail=f"Policy {pid} not found in this organization")
+        await session.execute(
+            pg_insert(team_policies).values(team_id=team_id, policy_id=pid).on_conflict_do_nothing()
+        )
+        added += 1
     await session.commit()
-    return {"message": "Policy assigned to team"}
+    return {"message": f"{added} policy(ies) assigned to team"}
 
 
 @router.delete("/{team_id}/policies/{policy_id}", status_code=status.HTTP_204_NO_CONTENT)
