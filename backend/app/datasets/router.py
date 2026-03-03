@@ -10,10 +10,13 @@ Endpoints:
   PUT    /datasets/{id}                 Update dataset
   DELETE /datasets/{id}                 Delete dataset (soft)
 
-  POST   /datasets/{id}/owners/{user_id}   Assign owner
-  DELETE /datasets/{id}/owners/{user_id}   Remove owner
-  POST   /datasets/{id}/experts/{user_id}  Assign expert
-  DELETE /datasets/{id}/experts/{user_id}  Remove expert
+  GET    /datasets/{id}/owners          List dataset owners
+  POST   /datasets/{id}/owners          Bulk add owners
+  DELETE /datasets/{id}/owners/{uid}    Remove owner
+
+  GET    /datasets/{id}/experts         List dataset experts
+  POST   /datasets/{id}/experts         Bulk add experts
+  DELETE /datasets/{id}/experts/{uid}   Remove expert
 """
 from __future__ import annotations
 
@@ -30,6 +33,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
 from app.auth.models import User
+from sqlalchemy.orm import selectinload
+
 from app.govern.models import (
     CatalogDomain, Dataset,
     dataset_owners, dataset_experts,
@@ -264,10 +269,33 @@ async def delete_dataset(
     await db.commit()
 
 
-# ── Owner / Expert bulk assignment ───────────────────────────────────────────
+# ── Owner / Expert sub-resources ─────────────────────────────────────────────
 
 class BulkUserIds(BaseModel):
     user_ids: List[uuid.UUID]
+
+
+async def _load_dataset_with_relations(dataset_id: uuid.UUID, org_id: uuid.UUID, db: AsyncSession) -> Dataset:
+    result = await db.execute(
+        select(Dataset)
+        .where(Dataset.id == dataset_id, Dataset.org_id == org_id)
+        .options(selectinload(Dataset.owners), selectinload(Dataset.experts))
+    )
+    obj = result.scalar_one_or_none()
+    if not obj:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
+    return obj
+
+
+@router.get("/{dataset_id}/owners", response_model=List[UserSummary], summary="List owners of a dataset")
+async def list_dataset_owners(
+    dataset_id: uuid.UUID,
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    active_org = get_active_org_id(user)
+    ds = await _load_dataset_with_relations(dataset_id, active_org, db)
+    return ds.owners
 
 
 @router.post("/{dataset_id}/owners", status_code=status.HTTP_201_CREATED)
@@ -307,6 +335,17 @@ async def remove_dataset_owner(
         )
     )
     await db.commit()
+
+
+@router.get("/{dataset_id}/experts", response_model=List[UserSummary], summary="List experts of a dataset")
+async def list_dataset_experts(
+    dataset_id: uuid.UUID,
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    active_org = get_active_org_id(user)
+    ds = await _load_dataset_with_relations(dataset_id, active_org, db)
+    return ds.experts
 
 
 @router.post("/{dataset_id}/experts", status_code=status.HTTP_201_CREATED)

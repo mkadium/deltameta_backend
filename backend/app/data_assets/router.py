@@ -10,12 +10,17 @@ Endpoints:
   PUT    /data-assets/{id}                      Update asset
   DELETE /data-assets/{id}                      Soft delete
 
-  POST   /data-assets/{id}/owners/{uid}         Assign owner
-  DELETE /data-assets/{id}/owners/{uid}         Remove owner
-  POST   /data-assets/{id}/experts/{uid}        Assign expert
-  DELETE /data-assets/{id}/experts/{uid}        Remove expert
-  POST   /data-assets/{id}/tags/{tag_id}        Assign classification tag
+  GET    /data-assets/{id}/tags                 List classification tags on asset
+  POST   /data-assets/{id}/tags                 Bulk assign classification tags
   DELETE /data-assets/{id}/tags/{tag_id}        Remove classification tag
+
+  GET    /data-assets/{id}/owners               List owners
+  POST   /data-assets/{id}/owners               Bulk add owners
+  DELETE /data-assets/{id}/owners/{uid}         Remove owner
+
+  GET    /data-assets/{id}/experts              List experts
+  POST   /data-assets/{id}/experts              Bulk add experts
+  DELETE /data-assets/{id}/experts/{uid}        Remove expert
 
   GET    /data-assets/{id}/columns              List columns
   POST   /data-assets/{id}/columns              Add column
@@ -35,6 +40,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db import get_session
 from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
@@ -396,7 +402,7 @@ async def delete_data_asset(
     await db.commit()
 
 
-# ── Tag / Owner / Expert bulk assignment ──────────────────────────────────────
+# ── Tag / Owner / Expert sub-resources ────────────────────────────────────────
 
 class BulkTagIds(BaseModel):
     tag_ids: List[uuid.UUID]
@@ -404,6 +410,33 @@ class BulkTagIds(BaseModel):
 
 class BulkUserIds(BaseModel):
     user_ids: List[uuid.UUID]
+
+
+async def _load_asset_with_relations(asset_id: uuid.UUID, org_id: uuid.UUID, db: AsyncSession) -> DataAsset:
+    result = await db.execute(
+        select(DataAsset)
+        .where(DataAsset.id == asset_id, DataAsset.org_id == org_id)
+        .options(
+            selectinload(DataAsset.classification_tags),
+            selectinload(DataAsset.owners),
+            selectinload(DataAsset.experts),
+        )
+    )
+    obj = result.scalar_one_or_none()
+    if not obj:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data asset not found")
+    return obj
+
+
+@router.get("/{asset_id}/tags", response_model=List[TagSummary], summary="List classification tags assigned to an asset")
+async def list_asset_tags(
+    asset_id: uuid.UUID,
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    active_org = get_active_org_id(user)
+    asset = await _load_asset_with_relations(asset_id, active_org, db)
+    return asset.classification_tags
 
 
 @router.post("/{asset_id}/tags", status_code=status.HTTP_201_CREATED)
@@ -447,6 +480,17 @@ async def remove_asset_tag(
     await db.commit()
 
 
+@router.get("/{asset_id}/owners", response_model=List[UserSummary], summary="List owners of a data asset")
+async def list_asset_owners(
+    asset_id: uuid.UUID,
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    active_org = get_active_org_id(user)
+    asset = await _load_asset_with_relations(asset_id, active_org, db)
+    return asset.owners
+
+
 @router.post("/{asset_id}/owners", status_code=status.HTTP_201_CREATED)
 async def add_asset_owners(
     asset_id: uuid.UUID,
@@ -484,6 +528,17 @@ async def remove_asset_owner(
         )
     )
     await db.commit()
+
+
+@router.get("/{asset_id}/experts", response_model=List[UserSummary], summary="List experts of a data asset")
+async def list_asset_experts(
+    asset_id: uuid.UUID,
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    active_org = get_active_org_id(user)
+    asset = await _load_asset_with_relations(asset_id, active_org, db)
+    return asset.experts
 
 
 @router.post("/{asset_id}/experts", status_code=status.HTTP_201_CREATED)
