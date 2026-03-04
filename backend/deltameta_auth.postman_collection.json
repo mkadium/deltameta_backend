@@ -239,6 +239,12 @@
       "key": "incident_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "id": "9121e26f-751b-4b40-9347-2386bed22a27",
+      "key": "ingest_job_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {
@@ -13030,6 +13036,227 @@
               ]
             },
             "description": "List individual BotRun records for a bot (full run history)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "23070fc5-d5de-411e-a847-73685b1c89c7",
+      "name": "File Ingest",
+      "item": [
+        {
+          "id": "9d0c0d80-40cf-4f0c-8ae8-b9f4d825f2cd",
+          "name": "Upload File",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ingest/upload",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ingest",
+                "upload"
+              ]
+            },
+            "description": "Upload a file → infer schema → create IngestJob (status=preview_ready).",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "",
+                  "description": "CSV, TSV, Excel, JSON, or Parquet"
+                },
+                {
+                  "key": "storage_config_id",
+                  "type": "text",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Optional StorageConfig UUID for MinIO/S3"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "f680e675-79f6-4a48-aad3-44e01bc72d41",
+          "name": "List Ingest Jobs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ingest/jobs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ingest",
+                "jobs"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true,
+                  "description": "pending | preview_ready | success | failed | cancelled"
+                },
+                {
+                  "key": "file_type",
+                  "value": "",
+                  "disabled": true,
+                  "description": "csv | excel | tsv | json | parquet"
+                },
+                {
+                  "key": "triggered_by",
+                  "value": "",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "List ingest jobs for the current org."
+          },
+          "response": []
+        },
+        {
+          "id": "1ec0f6f9-dda7-44af-ac00-611196e23917",
+          "name": "Get Ingest Job",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ingest/jobs/{{ingest_job_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ingest",
+                "jobs",
+                "{{ingest_job_id}}"
+              ]
+            },
+            "description": "Get a specific ingest job by ID."
+          },
+          "response": []
+        },
+        {
+          "id": "e3fdc782-7477-450d-ab06-89f3798bd6cd",
+          "name": "Preview Ingest Job",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ingest/jobs/{{ingest_job_id}}/preview",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ingest",
+                "jobs",
+                "{{ingest_job_id}}",
+                "preview"
+              ]
+            },
+            "description": "Get inferred schema and first 50 rows from uploaded file."
+          },
+          "response": []
+        },
+        {
+          "id": "e062d99a-30d9-422f-bdfe-af70c8163419",
+          "name": "Confirm Ingest Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ingest/jobs/{{ingest_job_id}}/confirm",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ingest",
+                "jobs",
+                "{{ingest_job_id}}",
+                "confirm"
+              ]
+            },
+            "description": "Confirm schema → create DataAsset (source_type=upload) + DataAssetColumns + upload to MinIO/S3.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dataset_id\": \"{{dataset_id}}\",\n  \"asset_name\": \"my_uploaded_table\",\n  \"display_name\": \"My Uploaded Table\",\n  \"description\": \"Uploaded from CSV file\",\n  \"sensitivity\": \"internal\",\n  \"is_pii\": false,\n  \"tier\": \"3\",\n  \"column_overrides\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "85f0e0a9-cd90-40a3-b5cf-17cf48b21ea1",
+          "name": "Delete Ingest Job",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ingest/jobs/{{ingest_job_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ingest",
+                "jobs",
+                "{{ingest_job_id}}"
+              ]
+            },
+            "description": "Cancel/delete an ingest job (only if not yet confirmed/success)."
           },
           "response": []
         }

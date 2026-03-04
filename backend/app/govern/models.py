@@ -943,3 +943,79 @@ class QualityIncident(Base):
 
     test_case = relationship("QualityTestCase", back_populates="incidents", foreign_keys=[test_case_id])
     asset = relationship("DataAsset", foreign_keys=[asset_id])
+
+
+# ---------------------------------------------------------------------------
+# IngestJob  (Phase 3 Module 0 — file upload → catalog)
+# ---------------------------------------------------------------------------
+
+class IngestJob(Base):
+    __tablename__ = "ingest_jobs"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    triggered_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    # Original uploaded filename
+    file_name = Column(String(512), nullable=False)
+    file_size = Column(Integer, nullable=True)
+    # file_type: csv | excel | tsv | json | parquet
+    file_type = Column(String(20), nullable=False)
+    # Storage destination
+    storage_config_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.storage_config.id", ondelete="SET NULL"), nullable=True)
+    bucket = Column(String(255), nullable=True)
+    object_key = Column(String(1024), nullable=True)
+    # Resulting DataAsset (created after schema inference + confirmation)
+    asset_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_assets.id", ondelete="SET NULL"), nullable=True)
+    # status: pending | uploading | inferring | preview_ready | confirmed | success | failed | cancelled
+    status = Column(String(30), nullable=False, default="pending")
+    error_message = Column(Text, nullable=True)
+    # Inferred schema snapshot (list of {name, data_type, nullable, ...})
+    inferred_schema = Column(JSONB, nullable=False, default=list)
+    # Preview rows (first 50 rows as list of dicts)
+    preview_rows = Column(JSONB, nullable=False, default=list)
+    # Dataset to place the created DataAsset under (user-specified at confirm time)
+    dataset_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.datasets.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    asset = relationship("DataAsset", foreign_keys=[asset_id])
+
+
+# ---------------------------------------------------------------------------
+# CatalogView  (Phase 3 Module 0b — external connection → catalog)
+# ---------------------------------------------------------------------------
+
+class CatalogView(Base):
+    __tablename__ = "catalog_views"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    # The catalog entry for this view
+    asset_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_assets.id", ondelete="SET NULL"), nullable=True)
+    # The external Postgres connection
+    source_connection_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.service_endpoints.id", ondelete="SET NULL"), nullable=True)
+    source_schema = Column(String(255), nullable=True)
+    source_table = Column(String(255), nullable=True)
+    # source_object_type: table | view | materialized_view
+    source_object_type = Column(String(50), nullable=False, default="table")
+    name = Column(String(255), nullable=False)
+    display_name = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    tags = Column(JSONB, nullable=False, default=list)
+    glossary_term_ids = Column(JSONB, nullable=False, default=list)
+    synonyms = Column(JSONB, nullable=False, default=list)
+    # sync_mode: on_demand | scheduled
+    sync_mode = Column(String(20), nullable=False, default="on_demand")
+    cron_expr = Column(String(100), nullable=True)
+    last_synced_at = Column(DateTime(timezone=True), nullable=True)
+    # sync_status: never | syncing | success | failed
+    sync_status = Column(String(20), nullable=False, default="never")
+    sync_error = Column(Text, nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    asset = relationship("DataAsset", foreign_keys=[asset_id])
+    source_connection = relationship("ServiceEndpoint", foreign_keys=[source_connection_id])
