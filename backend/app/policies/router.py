@@ -54,6 +54,12 @@ async def _validate_resource_and_operations(
     2. every operation is in the resource's valid operations list
     Raises 422 if invalid.
     """
+    # "*" is the special superadmin wildcard — skip validation
+    if resource == "*":
+        if operations != ["*"] and "*" not in operations:
+            pass  # allow any ops with wildcard resource
+        return
+
     resource_def = await validate_resource_key(session, resource)
     if not resource_def:
         raise HTTPException(
@@ -64,7 +70,8 @@ async def _validate_resource_and_operations(
             ),
         )
     valid_ops = set(resource_def.operations)
-    invalid_ops = [op for op in operations if op not in valid_ops]
+    # "*" is a wildcard operation — always allowed
+    invalid_ops = [op for op in operations if op not in valid_ops and op != "*"]
     if invalid_ops:
         raise HTTPException(
             status_code=422,

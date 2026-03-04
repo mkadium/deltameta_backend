@@ -27,6 +27,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db import get_session
 from app.auth.dependencies import get_active_org_id, require_active_user
+from app.auth.abac import require_permission
 from app.govern.models import DataAsset, DataAssetProfile, ColumnProfile, DataAssetColumn
 
 router = APIRouter(tags=["Data Profiling"])
@@ -156,7 +157,7 @@ async def _resolve_column_id(
 async def trigger_profile(
     asset_id: uuid.UUID,
     body: ProfileSubmitBody = ProfileSubmitBody(),
-    current_user=Depends(require_active_user),
+    current_user=Depends(require_permission("data_profile", "create")),
     session: AsyncSession = Depends(get_session),
 ):
     """
@@ -343,7 +344,7 @@ async def update_profile(
     asset_id: uuid.UUID,
     profile_id: uuid.UUID,
     body: ProfileUpdateBody,
-    current_user=Depends(require_active_user),
+    current_user=Depends(require_permission("data_profile", "update")),
     session: AsyncSession = Depends(get_session),
 ):
     org_id = get_active_org_id(current_user)
@@ -432,7 +433,7 @@ async def update_profile(
 async def delete_profile(
     asset_id: uuid.UUID,
     profile_id: uuid.UUID,
-    current_user=Depends(require_active_user),
+    current_user=Depends(require_permission("data_profile", "delete")),
     session: AsyncSession = Depends(get_session),
 ):
     org_id = get_active_org_id(current_user)

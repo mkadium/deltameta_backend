@@ -12553,6 +12553,125 @@
           ]
         }
       ]
+    },
+    {
+      "id": "4205893c-0a10-4bb4-af8f-a4b3f0cd9208",
+      "name": "Search",
+      "item": [
+        {
+          "id": "d940ff84-cef7-42f5-aa9e-6942c2bc57f4",
+          "name": "Full-Text Search",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/search",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "customer",
+                  "disabled": false
+                },
+                {
+                  "key": "type",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "domain_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "owner_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "is_pii",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "sensitivity",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "asset_type",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "PG full-text search. Phase 3 will swap to Elasticsearch with same contract."
+          },
+          "response": []
+        },
+        {
+          "id": "65c1c42f-d813-4331-9d55-29eb32dbec58",
+          "name": "Search Suggestions (Autocomplete)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/search/suggestions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "search",
+                "suggestions"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "cust",
+                  "disabled": false
+                },
+                {
+                  "key": "type",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Fast ILIKE prefix search for autocomplete dropdowns."
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }

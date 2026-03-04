@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
+from app.auth.abac import require_permission
 from app.auth.models import User
 from sqlalchemy.orm import selectinload
 
@@ -170,7 +171,7 @@ async def list_datasets(
 @router.post("", response_model=DatasetOut, status_code=status.HTTP_201_CREATED)
 async def create_dataset(
     body: DatasetCreate,
-    user: User = Depends(require_active_user),
+    user: User = Depends(require_permission("dataset", "create")),
     db: AsyncSession = Depends(get_session),
 ):
     active_org = get_active_org_id(user)
@@ -220,7 +221,7 @@ async def get_dataset(
 async def update_dataset(
     dataset_id: uuid.UUID,
     body: DatasetUpdate,
-    user: User = Depends(require_active_user),
+    user: User = Depends(require_permission("dataset", "update")),
     db: AsyncSession = Depends(get_session),
 ):
     active_org = get_active_org_id(user)
@@ -260,7 +261,7 @@ async def update_dataset(
 @router.delete("/{dataset_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_dataset(
     dataset_id: uuid.UUID,
-    user: User = Depends(require_org_admin),
+    user: User = Depends(require_permission("dataset", "delete")),
     db: AsyncSession = Depends(get_session),
 ):
     active_org = get_active_org_id(user)

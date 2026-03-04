@@ -44,6 +44,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db import get_session
 from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
+from app.auth.abac import require_permission
 from app.auth.models import User
 from app.govern.models import (
     ClassificationTag, DataAsset, DataAssetColumn, Dataset,
@@ -277,7 +278,7 @@ async def list_data_assets(
 @router.post("", response_model=DataAssetOut, status_code=status.HTTP_201_CREATED)
 async def create_data_asset(
     body: DataAssetCreate,
-    user: User = Depends(require_active_user),
+    user: User = Depends(require_permission("data_asset", "create")),
     db: AsyncSession = Depends(get_session),
 ):
     active_org = get_active_org_id(user)
@@ -350,7 +351,7 @@ async def get_data_asset(
 async def update_data_asset(
     asset_id: uuid.UUID,
     body: DataAssetUpdate,
-    user: User = Depends(require_active_user),
+    user: User = Depends(require_permission("data_asset", "update")),
     db: AsyncSession = Depends(get_session),
 ):
     active_org = get_active_org_id(user)
@@ -393,7 +394,7 @@ async def update_data_asset(
 @router.delete("/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_data_asset(
     asset_id: uuid.UUID,
-    user: User = Depends(require_org_admin),
+    user: User = Depends(require_permission("data_asset", "delete")),
     db: AsyncSession = Depends(get_session),
 ):
     active_org = get_active_org_id(user)

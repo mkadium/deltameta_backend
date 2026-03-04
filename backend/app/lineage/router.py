@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.auth.dependencies import get_active_org_id, require_active_user
+from app.auth.abac import require_permission
 from app.govern.models import DataAsset, LineageEdge
 
 router = APIRouter(prefix="/lineage", tags=["Data Lineage"])
@@ -205,7 +206,7 @@ async def _traverse(
 )
 async def create_edge(
     body: LineageEdgeCreate,
-    current_user=Depends(require_active_user),
+    current_user=Depends(require_permission("lineage", "create")),
     session: AsyncSession = Depends(get_session),
 ):
     org_id = get_active_org_id(current_user)
@@ -302,7 +303,7 @@ async def list_edges(
 )
 async def delete_edge(
     edge_id: uuid.UUID,
-    current_user=Depends(require_active_user),
+    current_user=Depends(require_permission("lineage", "delete")),
     session: AsyncSession = Depends(get_session),
 ):
     edge = await _get_edge_or_404(edge_id, get_active_org_id(current_user), session)

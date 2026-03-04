@@ -53,6 +53,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.auth.dependencies import get_active_org_id, require_active_user
+from app.auth.abac import require_permission
 from app.govern.models import (
     DataAsset,
     QualityIncident,
@@ -369,7 +370,7 @@ async def _auto_create_incident_if_failed(
 @router.post("/test-cases", response_model=TestCaseOut, status_code=201, summary="Create a quality test case")
 async def create_test_case(
     body: TestCaseCreate,
-    current_user=Depends(require_active_user),
+    current_user=Depends(require_permission("data_quality", "create")),
     session: AsyncSession = Depends(get_session),
 ):
     org_id = get_active_org_id(current_user)
@@ -430,7 +431,7 @@ async def get_test_case(tc_id: uuid.UUID, current_user=Depends(require_active_us
 @router.put("/test-cases/{tc_id}", response_model=TestCaseOut, summary="Update a test case")
 async def update_test_case(
     tc_id: uuid.UUID, body: TestCaseUpdate,
-    current_user=Depends(require_active_user),
+    current_user=Depends(require_permission("data_quality", "update")),
     session: AsyncSession = Depends(get_session),
 ):
     tc = await _get_test_case_or_404(tc_id, get_active_org_id(current_user), session)
@@ -444,7 +445,7 @@ async def update_test_case(
 
 
 @router.delete("/test-cases/{tc_id}", status_code=204, summary="Delete a test case")
-async def delete_test_case(tc_id: uuid.UUID, current_user=Depends(require_active_user), session: AsyncSession = Depends(get_session)):
+async def delete_test_case(tc_id: uuid.UUID, current_user=Depends(require_permission("data_quality", "delete")), session: AsyncSession = Depends(get_session)):
     tc = await _get_test_case_or_404(tc_id, get_active_org_id(current_user), session)
     await session.delete(tc)
     await session.commit()
@@ -453,7 +454,7 @@ async def delete_test_case(tc_id: uuid.UUID, current_user=Depends(require_active
 @router.post("/test-cases/{tc_id}/run", response_model=TestRunOut, status_code=201, summary="Trigger a test case run")
 async def run_test_case(
     tc_id: uuid.UUID,
-    current_user=Depends(require_active_user),
+    current_user=Depends(require_permission("data_quality", "run")),
     session: AsyncSession = Depends(get_session),
 ):
     org_id = get_active_org_id(current_user)
@@ -489,7 +490,7 @@ async def list_test_case_runs(
 @router.post("/test-suites", response_model=TestSuiteOut, status_code=201, summary="Create a test suite")
 async def create_test_suite(
     body: TestSuiteCreate,
-    current_user=Depends(require_active_user),
+    current_user=Depends(require_permission("data_quality", "create")),
     session: AsyncSession = Depends(get_session),
 ):
     org_id = get_active_org_id(current_user)
@@ -542,7 +543,7 @@ async def get_test_suite(ts_id: uuid.UUID, current_user=Depends(require_active_u
 @router.put("/test-suites/{ts_id}", response_model=TestSuiteOut, summary="Update a test suite")
 async def update_test_suite(
     ts_id: uuid.UUID, body: TestSuiteUpdate,
-    current_user=Depends(require_active_user),
+    current_user=Depends(require_permission("data_quality", "update")),
     session: AsyncSession = Depends(get_session),
 ):
     ts = await _get_test_suite_or_404(ts_id, get_active_org_id(current_user), session)
@@ -556,7 +557,7 @@ async def update_test_suite(
 
 
 @router.delete("/test-suites/{ts_id}", status_code=204, summary="Delete a test suite")
-async def delete_test_suite(ts_id: uuid.UUID, current_user=Depends(require_active_user), session: AsyncSession = Depends(get_session)):
+async def delete_test_suite(ts_id: uuid.UUID, current_user=Depends(require_permission("data_quality", "delete")), session: AsyncSession = Depends(get_session)):
     ts = await _get_test_suite_or_404(ts_id, get_active_org_id(current_user), session)
     await session.delete(ts)
     await session.commit()
@@ -565,7 +566,7 @@ async def delete_test_suite(ts_id: uuid.UUID, current_user=Depends(require_activ
 @router.post("/test-suites/{ts_id}/run", response_model=TestRunOut, status_code=201, summary="Trigger a test suite run")
 async def run_test_suite(
     ts_id: uuid.UUID,
-    current_user=Depends(require_active_user),
+    current_user=Depends(require_permission("data_quality", "run")),
     session: AsyncSession = Depends(get_session),
 ):
     org_id = get_active_org_id(current_user)

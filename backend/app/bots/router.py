@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
+from app.auth.abac import require_permission
 from app.auth.models import User
 from app.govern.models import Bot
 from app.govern.activity import emit
@@ -133,7 +134,7 @@ async def list_bots(
 @router.post("", response_model=BotOut, status_code=status.HTTP_201_CREATED)
 async def create_bot(
     body: BotCreate,
-    user: User = Depends(require_active_user),
+    user: User = Depends(require_permission("bot", "create")),
     db: AsyncSession = Depends(get_session),
 ):
     _validate_bot(body)
@@ -167,7 +168,7 @@ async def get_bot(
 async def update_bot(
     bot_id: uuid.UUID,
     body: BotUpdate,
-    user: User = Depends(require_active_user),
+    user: User = Depends(require_permission("bot", "update")),
     db: AsyncSession = Depends(get_session),
 ):
     bot = await db.get(Bot, bot_id)
@@ -184,7 +185,7 @@ async def update_bot(
 @router.delete("/{bot_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_bot(
     bot_id: uuid.UUID,
-    user: User = Depends(require_active_user),
+    user: User = Depends(require_permission("bot", "delete")),
     db: AsyncSession = Depends(get_session),
 ):
     bot = await db.get(Bot, bot_id)
@@ -199,7 +200,7 @@ async def delete_bot(
 @router.patch("/{bot_id}/enable", response_model=BotOut)
 async def enable_bot(
     bot_id: uuid.UUID,
-    user: User = Depends(require_active_user),
+    user: User = Depends(require_permission("bot", "enable")),
     db: AsyncSession = Depends(get_session),
 ):
     bot = await db.get(Bot, bot_id)
@@ -214,7 +215,7 @@ async def enable_bot(
 @router.patch("/{bot_id}/disable", response_model=BotOut)
 async def disable_bot(
     bot_id: uuid.UUID,
-    user: User = Depends(require_active_user),
+    user: User = Depends(require_permission("bot", "disable")),
     db: AsyncSession = Depends(get_session),
 ):
     bot = await db.get(Bot, bot_id)
@@ -231,7 +232,7 @@ async def disable_bot(
 @router.post("/{bot_id}/run", response_model=BotRunOut)
 async def run_bot(
     bot_id: uuid.UUID,
-    user: User = Depends(require_active_user),
+    user: User = Depends(require_permission("bot", "run")),
     db: AsyncSession = Depends(get_session),
 ):
     """

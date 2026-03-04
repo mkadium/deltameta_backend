@@ -438,6 +438,59 @@ RESOURCE_REGISTRY: List[Dict[str, Any]] = [
     },
 
     # ── Change Workflow ───────────────────────────────────────────────────────
+    # ── Data Catalog (Phase 2 additions) ────────────────────────────────────
+    {
+        "group_slug": "data-catalog",
+        "key": "lineage",
+        "label": "Data Lineage",
+        "description": "Directed lineage edges between data assets",
+        "operations": ["read", "create", "delete"],
+        "is_static": True,
+    },
+    {
+        "group_slug": "data-catalog",
+        "key": "data_profile",
+        "label": "Data Profile",
+        "description": "Data profiling runs and column statistics",
+        "operations": ["read", "create", "update", "delete"],
+        "is_static": True,
+    },
+    {
+        "group_slug": "data-catalog",
+        "key": "data_quality",
+        "label": "Data Quality",
+        "description": "Quality test cases, suites, runs and incidents",
+        "operations": ["read", "create", "update", "delete", "run"],
+        "is_static": True,
+    },
+
+    # ── Platform Ops (Phase 2 additions) ─────────────────────────────────────
+    {
+        "group_slug": "platform-ops",
+        "key": "bot",
+        "label": "Bot",
+        "description": "Automated scanner/classification bots",
+        "operations": ["read", "create", "update", "delete", "enable", "disable", "run"],
+        "is_static": True,
+    },
+    {
+        "group_slug": "platform-ops",
+        "key": "scheduled_task",
+        "label": "Scheduled Task",
+        "description": "Scheduled automation tasks",
+        "operations": ["read", "create", "update", "delete", "activate", "deactivate", "trigger"],
+        "is_static": True,
+    },
+    {
+        "group_slug": "platform-ops",
+        "key": "search",
+        "label": "Search",
+        "description": "Full-text search across catalog entities",
+        "operations": ["read"],
+        "is_static": True,
+    },
+
+    # ── Change Workflow ───────────────────────────────────────────────────────
     {
         "group_slug": "change-workflow",
         "key": "change_request",

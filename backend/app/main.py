@@ -83,6 +83,7 @@ try:
     from app.profiling.router import router as profiling_router
     from app.lineage.router import router as lineage_router
     from app.quality.router import router as quality_router
+    from app.search.router import router as search_router
 except Exception:
     from .auth.router import router as auth_router
     from .teams.router import router as teams_router
@@ -113,6 +114,7 @@ except Exception:
     from .profiling.router import router as profiling_router
     from .lineage.router import router as lineage_router
     from .quality.router import router as quality_router
+    from .search.router import router as search_router
 
 app.include_router(auth_router)
 app.include_router(teams_router)
@@ -143,6 +145,7 @@ app.include_router(scheduled_tasks_router)
 app.include_router(profiling_router)
 app.include_router(lineage_router)
 app.include_router(quality_router)
+app.include_router(search_router)
 
 # Initialize OpenTelemetry tracing (optional)
 if setup_tracing:
