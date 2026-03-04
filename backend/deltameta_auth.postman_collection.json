@@ -219,6 +219,26 @@
       "key": "target_asset_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "test_case_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "test_suite_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "test_run_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "incident_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {
@@ -11781,6 +11801,756 @@
             "description": "Full graph (nodes + edges) for UI visualisation"
           },
           "response": []
+        }
+      ]
+    },
+    {
+      "id": "27753630-d1c3-4657-b494-94d0fa8f8e20",
+      "name": "Data Quality",
+      "item": [
+        {
+          "id": "e98d41b4-35ff-47c6-b233-fbd78fb94d17",
+          "name": "Test Cases",
+          "item": [
+            {
+              "id": "074782c0-baf1-44cc-91e6-469665465b85",
+              "name": "Create Test Case",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/test-cases",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "test-cases"
+                  ]
+                },
+                "description": "level: table|column|dimension  test_type: row_count_between|...",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"asset_id\": \"{{asset_id}}\",\n  \"name\": \"Row count must be between 100 and 9999\",\n  \"level\": \"table\",\n  \"test_type\": \"row_count_between\",\n  \"dimension\": \"completeness\",\n  \"config\": {\n    \"min\": 100,\n    \"max\": 9999\n  },\n  \"severity\": \"critical\",\n  \"tags\": [],\n  \"is_active\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "id": "2a439219-dbea-40aa-b5d0-ab7a39d85688",
+              "name": "List Test Cases",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/test-cases",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "test-cases"
+                  ],
+                  "query": [
+                    {
+                      "key": "asset_id",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "level",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "test_type",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "dimension",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "is_active",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "severity",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "id": "fd5591fc-8155-4133-8c8d-46df94196bfa",
+              "name": "Get Test Case",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/test-cases/{{test_case_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "test-cases",
+                    "{{test_case_id}}"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "id": "9db04491-df1e-456d-ad38-47a1a3512d31",
+              "name": "Update Test Case",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/test-cases/{{test_case_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "test-cases",
+                    "{{test_case_id}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"is_active\": true,\n  \"severity\": \"warning\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "id": "2cc51afa-f809-455b-9aae-25b39aedbe95",
+              "name": "Delete Test Case",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/test-cases/{{test_case_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "test-cases",
+                    "{{test_case_id}}"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "id": "ac4e4975-a414-4d3f-9b85-cc5338431612",
+              "name": "Run Test Case",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/test-cases/{{test_case_id}}/run",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "test-cases",
+                    "{{test_case_id}}",
+                    "run"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "id": "73e53c5b-e267-4f99-aa54-0d76dfb11adc",
+              "name": "List Test Case Runs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/test-cases/{{test_case_id}}/runs",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "test-cases",
+                    "{{test_case_id}}",
+                    "runs"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "id": "395cf834-2b3d-4a70-bff4-9e2917de05a0",
+          "name": "Test Suites",
+          "item": [
+            {
+              "id": "711f1aeb-be84-4176-9aee-ecdfdadc97e8",
+              "name": "Create Test Suite",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/test-suites",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "test-suites"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Customer Data Suite\",\n  \"suite_type\": \"bundle\",\n  \"test_case_ids\": [\n    \"{{test_case_id}}\"\n  ],\n  \"has_pipeline\": true,\n  \"trigger_mode\": \"on_demand\",\n  \"enable_debug_log\": false,\n  \"raise_on_error\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "id": "6602adf8-e7ec-44b4-8604-339d07c51012",
+              "name": "List Test Suites",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/test-suites",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "test-suites"
+                  ],
+                  "query": [
+                    {
+                      "key": "suite_type",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "asset_id",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "has_pipeline",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "id": "3cf9edf5-c9ed-456c-9c87-80bb628ef1cf",
+              "name": "Get Test Suite",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/test-suites/{{test_suite_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "test-suites",
+                    "{{test_suite_id}}"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "id": "e0f0894d-00af-4b61-8626-6c30386d89ee",
+              "name": "Update Test Suite",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/test-suites/{{test_suite_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "test-suites",
+                    "{{test_suite_id}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"has_pipeline\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "id": "24fd27fc-9af7-4ffa-9122-4fdbd2152b8e",
+              "name": "Delete Test Suite",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/test-suites/{{test_suite_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "test-suites",
+                    "{{test_suite_id}}"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "id": "a9ee9fda-7fef-4805-9a9c-c9891842629e",
+              "name": "Run Test Suite",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/test-suites/{{test_suite_id}}/run",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "test-suites",
+                    "{{test_suite_id}}",
+                    "run"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "id": "ecb9a870-2424-4e09-b265-3a40a1514be0",
+              "name": "List Test Suite Runs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/test-suites/{{test_suite_id}}/runs",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "test-suites",
+                    "{{test_suite_id}}",
+                    "runs"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "id": "c24d2304-a385-4214-860e-5e2d84f0e12f",
+          "name": "Test Runs",
+          "item": [
+            {
+              "id": "56ec2d51-23e1-4279-a140-db081d6ee1e4",
+              "name": "List All Runs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/runs",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "runs"
+                  ],
+                  "query": [
+                    {
+                      "key": "test_case_id",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "test_suite_id",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "triggered_by",
+                      "value": "",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "id": "d4b914b8-d6ee-4829-9f79-c1750974d8cb",
+              "name": "Get Run",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/runs/{{test_run_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "runs",
+                    "{{test_run_id}}"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "id": "6aa019d3-701a-4f64-a50f-db4783082270",
+              "name": "Update Run (Post Results)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/runs/{{test_run_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "runs",
+                    "{{test_run_id}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"success\",\n  \"result_detail\": {\n    \"pass_count\": 1,\n    \"fail_count\": 0\n  },\n  \"started_at\": \"2026-03-04T09:00:00Z\",\n  \"completed_at\": \"2026-03-04T09:00:05Z\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "id": "8cd311f7-ae21-4602-8e00-640266cc9971",
+          "name": "Incidents",
+          "item": [
+            {
+              "id": "46f4da06-9df5-40b0-9add-689ca0f3075f",
+              "name": "List Incidents",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/incidents",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "incidents"
+                  ],
+                  "query": [
+                    {
+                      "key": "test_case_id",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "asset_id",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "assignee_id",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "severity",
+                      "value": "",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "id": "123194b4-d833-4227-9a1d-ccc5d7caaf74",
+              "name": "Get Incident",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/incidents/{{incident_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "incidents",
+                    "{{incident_id}}"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "id": "d5568c0e-030f-45d9-8e61-10480c46ac9e",
+              "name": "Update Incident",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/incidents/{{incident_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "incidents",
+                    "{{incident_id}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"in_progress\",\n  \"assignee_id\": \"{{user_id}}\",\n  \"severity\": \"critical\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "id": "2dcbb8ab-94c2-4572-b0c9-1e36f9a9c74d",
+              "name": "Delete Incident",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/quality/incidents/{{incident_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "quality",
+                    "incidents",
+                    "{{incident_id}}"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            }
+          ]
         }
       ]
     }

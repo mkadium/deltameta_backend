@@ -782,3 +782,132 @@ class LineageEdge(Base):
 
     source_asset = relationship("DataAsset", foreign_keys=[source_asset_id])
     target_asset = relationship("DataAsset", foreign_keys=[target_asset_id])
+
+
+# ---------------------------------------------------------------------------
+# QualityTestCase
+# ---------------------------------------------------------------------------
+
+class QualityTestCase(Base):
+    __tablename__ = "quality_test_cases"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    asset_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_assets.id", ondelete="CASCADE"), nullable=False)
+    column_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_asset_columns.id", ondelete="SET NULL"), nullable=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    # level: table | column | dimension
+    level = Column(String(20), nullable=False, default="table")
+    # test_type: row_count_between | row_count_equal | column_count_between | column_count_equal |
+    #            column_name_exists | column_name_match_set | custom_sql | compare_tables | row_inserted_between
+    test_type = Column(String(50), nullable=False)
+    # dimension: accuracy | completeness | consistency | integrity | uniqueness | validity | sql | no_dimension
+    dimension = Column(String(50), nullable=True)
+    # e.g. {"min": 100, "max": 5000} or {"sql": "SELECT COUNT(*) FROM ..."}
+    config = Column(JSONB, nullable=False, default=dict)
+    # severity: info | warning | critical
+    severity = Column(String(20), nullable=False, default="warning")
+    tags = Column(JSONB, nullable=False, default=list)
+    glossary_term_ids = Column(JSONB, nullable=False, default=list)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    asset = relationship("DataAsset", foreign_keys=[asset_id])
+    runs = relationship("QualityTestRun", back_populates="test_case",
+                        primaryjoin="QualityTestRun.test_case_id == QualityTestCase.id",
+                        cascade="all, delete-orphan")
+    incidents = relationship("QualityIncident", back_populates="test_case", cascade="all, delete-orphan")
+
+
+# ---------------------------------------------------------------------------
+# QualityTestSuite
+# ---------------------------------------------------------------------------
+
+class QualityTestSuite(Base):
+    __tablename__ = "quality_test_suites"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    # suite_type: table | bundle
+    suite_type = Column(String(20), nullable=False, default="bundle")
+    # table suites are linked to one asset
+    asset_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_assets.id", ondelete="SET NULL"), nullable=True)
+    # ordered list of QualityTestCase UUIDs
+    test_case_ids = Column(JSONB, nullable=False, default=list)
+    owner_ids = Column(JSONB, nullable=False, default=list)
+    has_pipeline = Column(Boolean, nullable=False, default=False)
+    # trigger_mode: on_demand | scheduled (only relevant when has_pipeline=True)
+    trigger_mode = Column(String(20), nullable=False, default="on_demand")
+    cron_expr = Column(String(100), nullable=True)
+    enable_debug_log = Column(Boolean, nullable=False, default=False)
+    raise_on_error = Column(Boolean, nullable=False, default=False)
+    created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    asset = relationship("DataAsset", foreign_keys=[asset_id])
+    runs = relationship("QualityTestRun", back_populates="test_suite",
+                        primaryjoin="QualityTestRun.test_suite_id == QualityTestSuite.id",
+                        cascade="all, delete-orphan")
+
+
+# ---------------------------------------------------------------------------
+# QualityTestRun  (one execution of a test case or test suite)
+# ---------------------------------------------------------------------------
+
+class QualityTestRun(Base):
+    __tablename__ = "quality_test_runs"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    test_case_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.quality_test_cases.id", ondelete="CASCADE"), nullable=True)
+    test_suite_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.quality_test_suites.id", ondelete="CASCADE"), nullable=True)
+    triggered_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    # status: pending | running | success | aborted | failed
+    status = Column(String(20), nullable=False, default="pending")
+    # {"pass_count": N, "fail_count": N, "error": "...", "samples": [...]}
+    result_detail = Column(JSONB, nullable=False, default=dict)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    test_case = relationship("QualityTestCase", back_populates="runs",
+                             foreign_keys=[test_case_id], primaryjoin="QualityTestRun.test_case_id == QualityTestCase.id")
+    test_suite = relationship("QualityTestSuite", back_populates="runs",
+                              foreign_keys=[test_suite_id], primaryjoin="QualityTestRun.test_suite_id == QualityTestSuite.id")
+
+
+# ---------------------------------------------------------------------------
+# QualityIncident  (auto-created when a run fails or is aborted)
+# ---------------------------------------------------------------------------
+
+class QualityIncident(Base):
+    __tablename__ = "quality_incidents"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    test_case_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.quality_test_cases.id", ondelete="CASCADE"), nullable=False)
+    test_run_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.quality_test_runs.id", ondelete="SET NULL"), nullable=True)
+    asset_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_assets.id", ondelete="CASCADE"), nullable=False)
+    assignee_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    # status: open | in_progress | resolved | ignored
+    status = Column(String(20), nullable=False, default="open")
+    # severity: info | warning | critical
+    severity = Column(String(20), nullable=False, default="warning")
+    failed_reason = Column(Text, nullable=True)
+    aborted_reason = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    test_case = relationship("QualityTestCase", back_populates="incidents", foreign_keys=[test_case_id])
+    asset = relationship("DataAsset", foreign_keys=[asset_id])
