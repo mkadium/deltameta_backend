@@ -12672,6 +12672,368 @@
           "response": []
         }
       ]
+    },
+    {
+      "id": "0692f1ca-50c4-4238-87e2-b1537764a6cc",
+      "name": "Data Quality (Gap Fixes)",
+      "item": [
+        {
+          "id": "017c4a7a-6c39-4cf3-9e7a-963a73c7de49",
+          "name": "Quality Summary for Asset",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/quality/summary",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "quality",
+                "summary"
+              ]
+            },
+            "description": "Health score, pass/fail/aborted counts, open incidents for a data asset."
+          },
+          "response": []
+        },
+        {
+          "id": "e80d3c40-e1aa-4b03-9513-ad570fe3f5ee",
+          "name": "List Test Cases for Asset",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/quality/test-cases",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "quality",
+                "test-cases"
+              ],
+              "query": [
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "disabled": true
+                },
+                {
+                  "key": "severity",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "level",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "All quality test cases for a specific data asset."
+          },
+          "response": []
+        },
+        {
+          "id": "cdf322d9-cdae-4a5a-914d-3e3b71c7b1d7",
+          "name": "Run All Active Test Cases for Asset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets/{{asset_id}}/quality/run",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets",
+                "{{asset_id}}",
+                "quality",
+                "run"
+              ]
+            },
+            "description": "Trigger QualityTestRun for every active test case on this asset."
+          },
+          "response": []
+        },
+        {
+          "id": "1b5ee63a-1449-4973-82ce-17233936f6ef",
+          "name": "List Test Cases (with last_run_status filter)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/quality/test-cases",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "quality",
+                "test-cases"
+              ],
+              "query": [
+                {
+                  "key": "asset_id",
+                  "value": "{{asset_id}}",
+                  "disabled": true
+                },
+                {
+                  "key": "level",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "severity",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "last_run_status",
+                  "value": "failed",
+                  "disabled": true
+                },
+                {
+                  "key": "is_active",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "List quality test cases. New: last_run_status filter."
+          },
+          "response": []
+        },
+        {
+          "id": "b34ee189-13f9-4ae2-8ba3-1c8d0bc3b90f",
+          "name": "List Incidents (with date_range filter)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/quality/incidents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "quality",
+                "incidents"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "severity",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "asset_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "date_range",
+                  "value": "last_7_days",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "List incidents. New: date_range filter."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "9cab78ea-7668-4315-a517-6da0c0ead9d8",
+      "name": "Data Assets (Gap Fixes — tier + source_type)",
+      "item": [
+        {
+          "id": "4f633ddc-ab11-4d08-a562-860e3a84c049",
+          "name": "Create Data Asset (with tier + source_type)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets"
+              ]
+            },
+            "description": "tier: 1-5 (data criticality). source_type: manual | upload | connection_sync | bot_scan.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dataset_id\": \"{{dataset_id}}\",\n  \"name\": \"my_table\",\n  \"asset_type\": \"table\",\n  \"sensitivity\": \"internal\",\n  \"is_pii\": false,\n  \"tier\": \"2\",\n  \"source_type\": \"manual\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "9515d3e1-2309-40a1-9ddc-5c4e306c0f5c",
+          "name": "List Data Assets (filter by tier + source_type)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/data-assets",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "data-assets"
+              ],
+              "query": [
+                {
+                  "key": "tier",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "source_type",
+                  "value": "bot_scan",
+                  "disabled": true
+                },
+                {
+                  "key": "sensitivity",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "is_pii",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "is_active",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "New filters: tier and source_type."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "1da59329-104c-4fbe-8df5-f082d62e7c47",
+      "name": "Bots (Gap Fixes — BotRun history)",
+      "item": [
+        {
+          "id": "60e71550-2f20-4332-a138-3b523c3268f4",
+          "name": "List Bot Runs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bots/{{bot_id}}/runs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "bots",
+                "{{bot_id}}",
+                "runs"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "List individual BotRun records for a bot (full run history)."
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }

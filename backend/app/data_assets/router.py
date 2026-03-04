@@ -37,7 +37,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -48,6 +48,7 @@ from app.auth.abac import require_permission
 from app.auth.models import User
 from app.govern.models import (
     ClassificationTag, DataAsset, DataAssetColumn, Dataset,
+    QualityTestCase, QualityTestRun, QualityIncident,
     data_asset_owners, data_asset_experts, data_asset_tags,
 )
 
@@ -127,6 +128,8 @@ class DataAssetCreate(BaseModel):
     fully_qualified_name: Optional[str] = Field(None, max_length=512, description="e.g. mydb.public.sales")
     sensitivity: Optional[str] = Field("internal", max_length=50, description="public, internal, confidential, restricted")
     is_pii: bool = False
+    tier: Optional[str] = Field(None, max_length=10, description="1 | 2 | 3 | 4 | 5 — data criticality tier")
+    source_type: str = Field("manual", max_length=50, description="manual | upload | connection_sync | bot_scan")
     data_product_id: Optional[uuid.UUID] = None
     owner_ids: List[uuid.UUID] = Field(default_factory=list)
     expert_ids: List[uuid.UUID] = Field(default_factory=list)
@@ -142,6 +145,8 @@ class DataAssetUpdate(BaseModel):
     fully_qualified_name: Optional[str] = Field(None, max_length=512)
     sensitivity: Optional[str] = Field(None, max_length=50)
     is_pii: Optional[bool] = None
+    tier: Optional[str] = Field(None, max_length=10)
+    source_type: Optional[str] = Field(None, max_length=50)
     row_count: Optional[int] = None
     size_bytes: Optional[int] = None
     data_product_id: Optional[uuid.UUID] = None
@@ -166,6 +171,8 @@ class DataAssetOut(BaseModel):
     size_bytes: Optional[int] = None
     is_pii: bool
     is_active: bool
+    tier: Optional[str] = None
+    source_type: str = "manual"
     created_by: Optional[uuid.UUID] = None
     created_at: datetime
     updated_at: datetime
@@ -224,6 +231,8 @@ async def list_data_assets(
     sensitivity: Optional[str] = Query(None, description="public, internal, confidential, restricted"),
     is_pii: Optional[bool] = Query(None),
     is_active: Optional[bool] = Query(None),
+    tier: Optional[str] = Query(None, description="1 | 2 | 3 | 4 | 5"),
+    source_type: Optional[str] = Query(None, description="manual | upload | connection_sync | bot_scan"),
     created_by: Optional[uuid.UUID] = Query(None),
     # Relational filters
     owner_id: Optional[uuid.UUID] = Query(None, description="Filter assets that have this owner"),
@@ -255,6 +264,10 @@ async def list_data_assets(
         stmt = stmt.where(DataAsset.is_pii == is_pii)
     if is_active is not None:
         stmt = stmt.where(DataAsset.is_active == is_active)
+    if tier is not None:
+        stmt = stmt.where(DataAsset.tier == tier)
+    if source_type is not None:
+        stmt = stmt.where(DataAsset.source_type == source_type)
     if created_by is not None:
         stmt = stmt.where(DataAsset.created_by == created_by)
     if owner_id is not None:
@@ -305,6 +318,8 @@ async def create_data_asset(
         fully_qualified_name=body.fully_qualified_name,
         sensitivity=body.sensitivity,
         is_pii=body.is_pii,
+        tier=body.tier,
+        source_type=body.source_type,
         is_active=True,
         created_by=user.id,
     )
@@ -371,6 +386,10 @@ async def update_data_asset(
         asset.sensitivity = body.sensitivity
     if body.is_pii is not None:
         asset.is_pii = body.is_pii
+    if body.tier is not None:
+        asset.tier = body.tier
+    if body.source_type is not None:
+        asset.source_type = body.source_type
     if body.row_count is not None:
         asset.row_count = body.row_count
     if body.size_bytes is not None:
@@ -717,3 +736,159 @@ async def bulk_replace_columns(
         .order_by(DataAssetColumn.ordinal_position)
     )
     return result.scalars().all()
+
+
+# ── Quality sub-resources ──────────────────────────────────────────────────────
+
+class QualitySummary(BaseModel):
+    asset_id: uuid.UUID
+    total_test_cases: int
+    active_test_cases: int
+    total_runs: int
+    success_count: int
+    failed_count: int
+    aborted_count: int
+    pending_count: int
+    health_score: float  # 0.0 – 100.0  (success / (success+failed+aborted) * 100)
+    open_incidents: int
+
+
+@router.get("/{asset_id}/quality/summary", response_model=QualitySummary, summary="Quality health summary for a data asset")
+async def get_asset_quality_summary(
+    asset_id: uuid.UUID,
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    active_org = get_active_org_id(user)
+    await _get_asset_or_404(asset_id, active_org, db)
+
+    total_tc = (await db.execute(
+        select(func.count()).select_from(QualityTestCase).where(
+            QualityTestCase.asset_id == asset_id, QualityTestCase.org_id == active_org
+        )
+    )).scalar_one()
+
+    active_tc = (await db.execute(
+        select(func.count()).select_from(QualityTestCase).where(
+            QualityTestCase.asset_id == asset_id, QualityTestCase.org_id == active_org,
+            QualityTestCase.is_active == True,
+        )
+    )).scalar_one()
+
+    for _status, attr in [
+        ("success", "success_count"), ("failed", "failed_count"),
+        ("aborted", "aborted_count"), ("pending", "pending_count"),
+    ]:
+        pass  # computed below in one query
+
+    run_counts: dict = {}
+    rows = (await db.execute(
+        select(QualityTestRun.status, func.count().label("cnt"))
+        .where(QualityTestRun.org_id == active_org, QualityTestRun.test_case_id.in_(
+            select(QualityTestCase.id).where(
+                QualityTestCase.asset_id == asset_id, QualityTestCase.org_id == active_org
+            )
+        ))
+        .group_by(QualityTestRun.status)
+    )).all()
+    for row in rows:
+        run_counts[row.status] = row.cnt
+
+    success = run_counts.get("success", 0)
+    failed = run_counts.get("failed", 0)
+    aborted = run_counts.get("aborted", 0)
+    pending = run_counts.get("pending", 0)
+    total_runs = sum(run_counts.values())
+
+    denominator = success + failed + aborted
+    health_score = round((success / denominator * 100.0) if denominator > 0 else 0.0, 2)
+
+    open_incidents = (await db.execute(
+        select(func.count()).select_from(QualityIncident).where(
+            QualityIncident.asset_id == asset_id,
+            QualityIncident.org_id == active_org,
+            QualityIncident.status.in_(["open", "in_progress"]),
+        )
+    )).scalar_one()
+
+    return QualitySummary(
+        asset_id=asset_id,
+        total_test_cases=total_tc,
+        active_test_cases=active_tc,
+        total_runs=total_runs,
+        success_count=success,
+        failed_count=failed,
+        aborted_count=aborted,
+        pending_count=pending,
+        health_score=health_score,
+        open_incidents=open_incidents,
+    )
+
+
+@router.get("/{asset_id}/quality/test-cases", summary="List all quality test cases for a data asset")
+async def list_asset_quality_test_cases(
+    asset_id: uuid.UUID,
+    is_active: Optional[bool] = Query(None),
+    severity: Optional[str] = Query(None),
+    level: Optional[str] = Query(None, description="table | column | dimension"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    active_org = get_active_org_id(user)
+    await _get_asset_or_404(asset_id, active_org, db)
+    q = select(QualityTestCase).where(
+        QualityTestCase.asset_id == asset_id, QualityTestCase.org_id == active_org
+    )
+    if is_active is not None:
+        q = q.where(QualityTestCase.is_active == is_active)
+    if severity:
+        q = q.where(QualityTestCase.severity == severity)
+    if level:
+        q = q.where(QualityTestCase.level == level)
+    q = q.order_by(QualityTestCase.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(q)
+    return result.scalars().all()
+
+
+@router.post("/{asset_id}/quality/run", status_code=status.HTTP_201_CREATED, summary="Run all active test cases for a data asset")
+async def run_all_asset_quality_tests(
+    asset_id: uuid.UUID,
+    user: User = Depends(require_permission("data_quality", "run")),
+    db: AsyncSession = Depends(get_session),
+):
+    """Trigger a QualityTestRun for every active test case on this asset."""
+    active_org = get_active_org_id(user)
+    await _get_asset_or_404(asset_id, active_org, db)
+
+    result = await db.execute(
+        select(QualityTestCase).where(
+            QualityTestCase.asset_id == asset_id,
+            QualityTestCase.org_id == active_org,
+            QualityTestCase.is_active == True,
+        )
+    )
+    test_cases = result.scalars().all()
+    if not test_cases:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active test cases found for this data asset",
+        )
+
+    runs = []
+    for tc in test_cases:
+        run = QualityTestRun(
+            id=uuid.uuid4(),
+            org_id=active_org,
+            test_case_id=tc.id,
+            test_suite_id=None,
+            triggered_by=user.id,
+            status="pending",
+            result_detail={},
+        )
+        db.add(run)
+        runs.append(run)
+
+    await db.commit()
+    return {"asset_id": asset_id, "runs_triggered": len(runs), "message": f"Triggered {len(runs)} test run(s)."}

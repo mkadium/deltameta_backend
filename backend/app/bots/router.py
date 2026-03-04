@@ -13,7 +13,7 @@ from app.db import get_session
 from app.auth.dependencies import get_active_org_id, require_active_user, require_org_admin
 from app.auth.abac import require_permission
 from app.auth.models import User
-from app.govern.models import Bot
+from app.govern.models import Bot, BotRun
 from app.govern.activity import emit
 
 router = APIRouter(prefix="/bots", tags=["Bots"])
@@ -70,6 +70,23 @@ class BotRunOut(BaseModel):
     bot_id: uuid.UUID
     message: str
     triggered_at: datetime
+
+
+class BotRunRecord(BaseModel):
+    id: uuid.UUID
+    bot_id: uuid.UUID
+    org_id: uuid.UUID
+    triggered_by: Optional[uuid.UUID]
+    trigger_source: str
+    status: str
+    message: Optional[str]
+    output: dict
+    started_at: Optional[datetime]
+    completed_at: Optional[datetime]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 VALID_BOT_TYPES = {
@@ -248,36 +265,54 @@ async def run_bot(
     if not bot.is_enabled:
         raise HTTPException(status_code=400, detail="Bot is disabled. Enable it before running.")
 
-    bot.last_run_at = datetime.utcnow()
+    now = datetime.utcnow()
+    bot.last_run_at = now
     bot.last_run_status = "running"
     bot.last_run_message = f"Triggered on-demand by user {user.id}"
+
+    bot_run = BotRun(
+        id=uuid.uuid4(),
+        bot_id=bot.id,
+        org_id=get_active_org_id(user),
+        triggered_by=user.id,
+        trigger_source="on_demand",
+        status="running",
+        message=f"Triggered on-demand by user {user.id}",
+        output={},
+        started_at=now,
+    )
+    db.add(bot_run)
     await db.commit()
     await db.refresh(bot)
 
     await emit(db, entity_type="bot", action="run_triggered", entity_id=bot.id,
                org_id=get_active_org_id(user), actor_id=user.id,
-               details={"bot_type": bot.bot_type, "mode": bot.mode})
+               details={"bot_type": bot.bot_type, "mode": bot.mode, "run_id": str(bot_run.id)})
     await db.commit()
 
     return BotRunOut(
         bot_id=bot.id,
         message=f"Bot '{bot.name}' ({bot.bot_type}) run triggered. Status: running.",
-        triggered_at=bot.last_run_at,
+        triggered_at=now,
     )
 
 
-@router.get("/{bot_id}/runs", response_model=List[BotOut])
+@router.get("/{bot_id}/runs", response_model=List[BotRunRecord])
 async def list_bot_runs(
     bot_id: uuid.UUID,
+    status_filter: Optional[str] = Query(None, alias="status", description="pending | running | success | failed | aborted"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_session),
 ):
-    """
-    Returns the current bot record (which holds last_run_at / last_run_status).
-    Full run history will be backed by a BotRun table in Phase 3 (agents module).
-    For now returns a single-item list with the bot's latest run state.
-    """
+    """List all individual run records for a bot (most recent first)."""
     bot = await db.get(Bot, bot_id)
     if not bot or bot.org_id != get_active_org_id(user):
         raise HTTPException(status_code=404, detail="Bot not found")
-    return [bot]
+    stmt = select(BotRun).where(BotRun.bot_id == bot_id, BotRun.org_id == get_active_org_id(user))
+    if status_filter:
+        stmt = stmt.where(BotRun.status == status_filter)
+    stmt = stmt.order_by(BotRun.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    return result.scalars().all()

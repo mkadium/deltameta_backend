@@ -613,6 +613,10 @@ class DataAsset(Base):
     size_bytes = Column(Integer, nullable=True)
     is_pii = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)
+    # tier: "1" | "2" | "3" | "4" | "5" — data criticality tier (Tier 1 = most critical)
+    tier = Column(String(10), nullable=True)
+    # source_type: "manual" | "upload" | "connection_sync" | "bot_scan"
+    source_type = Column(String(50), nullable=False, default="manual")
     created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -700,6 +704,34 @@ class Bot(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     service_endpoint = relationship("ServiceEndpoint", foreign_keys=[service_endpoint_id])
+    runs = relationship("BotRun", back_populates="bot", cascade="all, delete-orphan")
+
+
+# ---------------------------------------------------------------------------
+# BotRun  (individual execution record for each bot invocation)
+# ---------------------------------------------------------------------------
+
+class BotRun(Base):
+    __tablename__ = "bot_runs"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    bot_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.bots.id", ondelete="CASCADE"), nullable=False)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    triggered_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    # trigger_source: "on_demand" | "scheduled" | "api"
+    trigger_source = Column(String(50), nullable=False, default="on_demand")
+    # status: pending | running | success | failed | aborted
+    status = Column(String(20), nullable=False, default="pending")
+    # Summary message (e.g. "Scanned 42 tables, created 18 assets")
+    message = Column(Text, nullable=True)
+    # Detailed run output / error traceback
+    output = Column(JSONB, nullable=False, default=dict)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    bot = relationship("Bot", back_populates="runs", foreign_keys=[bot_id])
 
 
 # ---------------------------------------------------------------------------

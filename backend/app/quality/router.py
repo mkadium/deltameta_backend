@@ -43,12 +43,12 @@ Incidents:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, field_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
@@ -403,6 +403,7 @@ async def list_test_cases(
     dimension: Optional[str] = Query(None),
     is_active: Optional[bool] = Query(None),
     severity: Optional[str] = Query(None),
+    last_run_status: Optional[str] = Query(None, description="pending | running | success | aborted | failed — filter by latest run status"),
     search: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
@@ -418,6 +419,21 @@ async def list_test_cases(
     if is_active is not None: q = q.where(QualityTestCase.is_active == is_active)
     if severity: q = q.where(QualityTestCase.severity == severity)
     if search: q = q.where(QualityTestCase.name.ilike(f"%{search}%"))
+    if last_run_status:
+        # Subquery: test cases that have at least one run with this status as their latest run
+        latest_run_subq = (
+            select(QualityTestRun.test_case_id)
+            .where(
+                QualityTestRun.org_id == org_id,
+                QualityTestRun.test_case_id == QualityTestCase.id,
+                QualityTestRun.status == last_run_status,
+            )
+            .order_by(QualityTestRun.created_at.desc())
+            .limit(1)
+            .correlate(QualityTestCase)
+            .exists()
+        )
+        q = q.where(latest_run_subq)
     q = q.order_by(QualityTestCase.created_at.desc()).offset(skip).limit(limit)
     result = await session.execute(q)
     return result.scalars().all()
@@ -658,6 +674,7 @@ async def list_incidents(
     status: Optional[str] = Query(None, description="open | in_progress | resolved | ignored"),
     assignee_id: Optional[uuid.UUID] = Query(None),
     severity: Optional[str] = Query(None),
+    date_range: Optional[str] = Query(None, description="yesterday | last_7_days | last_15_days | last_30_days"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     current_user=Depends(require_active_user),
@@ -670,6 +687,21 @@ async def list_incidents(
     if status: q = q.where(QualityIncident.status == status)
     if assignee_id: q = q.where(QualityIncident.assignee_id == assignee_id)
     if severity: q = q.where(QualityIncident.severity == severity)
+    if date_range:
+        _DATE_RANGE_DAYS = {
+            "yesterday": 1,
+            "last_7_days": 7,
+            "last_15_days": 15,
+            "last_30_days": 30,
+        }
+        days = _DATE_RANGE_DAYS.get(date_range)
+        if days is None:
+            raise HTTPException(
+                status_code=422,
+                detail="date_range must be one of: yesterday, last_7_days, last_15_days, last_30_days",
+            )
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+        q = q.where(QualityIncident.created_at >= since)
     q = q.order_by(QualityIncident.created_at.desc()).offset(skip).limit(limit)
     result = await session.execute(q)
     return result.scalars().all()
