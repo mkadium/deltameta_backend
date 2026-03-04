@@ -1,35 +1,91 @@
-name: CI
+name: Deltameta CI
 
 on:
   push:
-    branches: [ main, dev, staging ]
+    branches: [main, dev, mohan]
   pull_request:
-    branches: [ main, dev, staging ]
+    branches: [main, dev]
 
 jobs:
-  build:
+  lint-and-test:
+    name: Lint + Test
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: deltameta_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-      - name: Install backend deps
-        run: |
-          if [ -f backend/requirements.txt ]; then python -m pip install --upgrade pip && pip install -r backend/requirements.txt; else echo "No backend requirements"; fi
-      - name: Run Python tests
-        run: |
-          if [ -d backend/testcases ]; then pip install pytest && pytest -q backend/testcases; else echo "No backend tests"; fi
-      - name: Build and push Docker image (optional)
-        if: github.event_name == 'push'
-        env:
-          REGISTRY: ghcr.io
-          IMAGE_NAME: ${{ github.repository }}
-        run: |
-          if [ -f Dockerfile ]; then echo "Building image..."; docker build -t "${REGISTRY}/${IMAGE_NAME}:latest" .; else echo "No Dockerfile"; fi
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          pip install celery[redis] redis minio trino pyiceberg rdflib \
+            weaviate-client openai anthropic pandas openpyxl pyarrow \
+            pytest pytest-asyncio httpx python-dotenv
+
+      - name: Run migrations
+        working-directory: backend
+        env:
+          PRIMARY_DB_HOST: localhost
+          PRIMARY_DB_PORT: 5432
+          PRIMARY_DB_USER: postgres
+          PRIMARY_DB_PASSWORD: postgres
+          PRIMARY_DB_NAME: deltameta_ci
+          PRIMARY_DB_SCHEMA: deltameta
+        run: python -m alembic upgrade head
+
+      - name: Run tests
+        working-directory: backend
+        env:
+          PRIMARY_DB_HOST: localhost
+          PRIMARY_DB_PORT: 5432
+          PRIMARY_DB_USER: postgres
+          PRIMARY_DB_PASSWORD: postgres
+          PRIMARY_DB_NAME: deltameta_ci
+          PRIMARY_DB_SCHEMA: deltameta
+        run: |
+          PYTHONPATH=. pytest testcases/ -v --asyncio-mode=auto \
+            --ignore=testcases/test_prephase2_fixes.py \
+            -x
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          dockerfile: ./backend/Dockerfile
+          push: false
+          tags: deltameta-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

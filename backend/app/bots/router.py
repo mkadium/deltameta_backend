@@ -255,9 +255,9 @@ async def run_bot(
     """
     Trigger an on-demand run for a bot.
 
-    Accessible by org admins and data asset owners (ABAC enforcement
-    will be wired in Phase 2 Module 5). For now any active user in the
-    org can trigger a run on an enabled bot.
+    Creates a BotRun record immediately (status=running), then enqueues
+    the actual agent execution via Celery. If Celery/Redis is not available
+    the run record is still created (for manual testing without a worker).
     """
     bot = await db.get(Bot, bot_id)
     if not bot or bot.org_id != get_active_org_id(user):
@@ -289,6 +289,30 @@ async def run_bot(
                org_id=get_active_org_id(user), actor_id=user.id,
                details={"bot_type": bot.bot_type, "mode": bot.mode, "run_id": str(bot_run.id)})
     await db.commit()
+
+    # Enqueue Celery task (gracefully skip if broker unavailable — e.g. during testing)
+    celery_config = {}
+    if bot.service_endpoint_id:
+        celery_config["service_endpoint_id"] = str(bot.service_endpoint_id)
+    if bot.model_name:
+        celery_config["model_name"] = bot.model_name
+
+    try:
+        from app.tasks.bot_tasks import run_bot_task
+        run_bot_task.apply_async(
+            kwargs={
+                "bot_run_id": str(bot_run.id),
+                "bot_id": str(bot.id),
+                "org_id": str(get_active_org_id(user)),
+                "bot_type": bot.bot_type,
+                "mode": bot.mode,
+                "config": celery_config,
+            },
+            task_id=str(bot_run.id),
+        )
+    except Exception:
+        # Celery broker not available — run record already created, will be picked up manually
+        pass
 
     return BotRunOut(
         bot_id=bot.id,

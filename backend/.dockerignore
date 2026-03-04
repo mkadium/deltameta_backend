@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.env
+.env.docker
+*.egg-info/
+dist/
+build/
+.git/
+testcases/__pycache__/

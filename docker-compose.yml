@@ -1,0 +1,292 @@
+version: "3.9"
+
+# Deltameta — Platform Services
+# NOTE: PostgreSQL is NOT containerized — use your own external Postgres connection
+#       configured via PRIMARY_DB_* environment variables in .env
+
+services:
+
+  # ── FastAPI Application ──────────────────────────────────────────────────────
+  deltameta-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: deltameta-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+      - minio
+    volumes:
+      - ./backend:/app
+    networks:
+      - deltameta-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Celery Worker ─────────────────────────────────────────────────────────────
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: deltameta-celery-worker
+    restart: unless-stopped
+    command: celery -A celery_app.celery worker --loglevel=info --concurrency=4 -Q celery,bot_tasks
+    env_file:
+      - ./backend/.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    volumes:
+      - ./backend:/app
+    networks:
+      - deltameta-net
+
+  # ── Celery Beat (Scheduler) ───────────────────────────────────────────────────
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: deltameta-celery-beat
+    restart: unless-stopped
+    command: celery -A celery_app.celery beat --loglevel=info --scheduler celery.beat:PersistentScheduler
+    env_file:
+      - ./backend/.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    volumes:
+      - ./backend:/app
+      - celery-beat-data:/tmp/celerybeat-schedule
+    networks:
+      - deltameta-net
+
+  # ── Celery Flower (Monitor UI) ────────────────────────────────────────────────
+  celery-flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: deltameta-flower
+    restart: unless-stopped
+    command: celery -A celery_app.celery flower --port=5555
+    ports:
+      - "5555:5555"
+    env_file:
+      - ./backend/.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    networks:
+      - deltameta-net
+
+  # ── Redis (Celery Broker + Backend) ──────────────────────────────────────────
+  redis:
+    image: redis:7.2-alpine
+    container_name: deltameta-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    networks:
+      - deltameta-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── MinIO (Default Object Storage) ────────────────────────────────────────────
+  minio:
+    image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+    container_name: deltameta-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Console UI
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - deltameta-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Trino (SQL Query Engine) ───────────────────────────────────────────────────
+  trino:
+    image: trinodb/trino:435
+    container_name: deltameta-trino
+    restart: unless-stopped
+    ports:
+      - "8090:8080"
+    volumes:
+      - ./infra/trino/etc:/etc/trino
+    networks:
+      - deltameta-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ── Spark Master ──────────────────────────────────────────────────────────────
+  spark-master:
+    image: bitnami/spark:3.5
+    container_name: deltameta-spark-master
+    restart: unless-stopped
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_WEBUI_PORT=8080
+    ports:
+      - "7077:7077"   # Spark master port
+      - "8082:8080"   # Spark Master UI
+    volumes:
+      - spark-data:/opt/bitnami/spark/work
+    networks:
+      - deltameta-net
+
+  # ── Spark Worker ──────────────────────────────────────────────────────────────
+  spark-worker:
+    image: bitnami/spark:3.5
+    container_name: deltameta-spark-worker
+    restart: unless-stopped
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+    depends_on:
+      - spark-master
+    volumes:
+      - spark-data:/opt/bitnami/spark/work
+    networks:
+      - deltameta-net
+
+  # ── Spark History Server ───────────────────────────────────────────────────────
+  spark-history:
+    image: bitnami/spark:3.5
+    container_name: deltameta-spark-history
+    restart: unless-stopped
+    command: >
+      bash -c "/opt/bitnami/spark/sbin/start-history-server.sh && tail -f /dev/null"
+    environment:
+      - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=/tmp/spark-events
+    ports:
+      - "18080:18080"
+    networks:
+      - deltameta-net
+
+  # ── Airflow (Webserver + Scheduler) ──────────────────────────────────────────
+  airflow-webserver:
+    image: apache/airflow:2.9.2
+    container_name: deltameta-airflow-webserver
+    restart: unless-stopped
+    command: webserver
+    ports:
+      - "8081:8080"   # Airflow UI
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW_DB_URL:-postgresql+psycopg2://postgres:postgres@host.docker.internal:5432/airflow}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-}
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-deltameta-airflow-secret}
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    volumes:
+      - airflow-dags:/opt/airflow/dags
+      - airflow-logs:/opt/airflow/logs
+    networks:
+      - deltameta-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  airflow-scheduler:
+    image: apache/airflow:2.9.2
+    container_name: deltameta-airflow-scheduler
+    restart: unless-stopped
+    command: scheduler
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW_DB_URL:-postgresql+psycopg2://postgres:postgres@host.docker.internal:5432/airflow}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-}
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    volumes:
+      - airflow-dags:/opt/airflow/dags
+      - airflow-logs:/opt/airflow/logs
+    depends_on:
+      - airflow-webserver
+    networks:
+      - deltameta-net
+
+  # ── Jupyter (Notebooks — PySpark) ─────────────────────────────────────────────
+  jupyter:
+    image: jupyter/pyspark-notebook:spark-3.5.0
+    container_name: deltameta-jupyter
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    environment:
+      JUPYTER_ENABLE_LAB: "yes"
+      SPARK_MASTER: spark://spark-master:7077
+    volumes:
+      - jupyter-notebooks:/home/jovyan/work
+    networks:
+      - deltameta-net
+
+  # ── Elasticsearch (Phase 3 Module 11 — replaces PG full-text search) ──────────
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: deltameta-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx1g
+    ports:
+      - "9200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    networks:
+      - deltameta-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  redis-data:
+  minio-data:
+  spark-data:
+  airflow-dags:
+  airflow-logs:
+  jupyter-notebooks:
+  es-data:
+  celery-beat-data:
+
+
+# ── Networks ──────────────────────────────────────────────────────────────────
+networks:
+  deltameta-net:
+    driver: bridge
