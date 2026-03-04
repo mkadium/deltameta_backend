@@ -209,6 +209,16 @@
       "key": "profile_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "edge_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "target_asset_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {
@@ -11550,6 +11560,225 @@
               ]
             },
             "description": ""
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "da4b9640-f83b-4122-ba5c-596fb461db97",
+      "name": "Data Lineage",
+      "item": [
+        {
+          "id": "c19da882-806d-4ce5-beb1-8c92fea943f3",
+          "name": "Create Lineage Edge",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/lineage",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "lineage"
+              ]
+            },
+            "description": "edge_type: direct | derived | copy | aggregated",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_asset_id\": \"{{asset_id}}\",\n  \"target_asset_id\": \"{{target_asset_id}}\",\n  \"edge_type\": \"direct\",\n  \"transformation\": \"SELECT * FROM source\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "f6bd547b-d640-4335-b3d9-7afff3e056c8",
+          "name": "List Lineage Edges",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/lineage",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "lineage"
+              ],
+              "query": [
+                {
+                  "key": "source_asset_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "target_asset_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "edge_type",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "created_by",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "4f66c5e5-4316-4d76-95da-de3b44c867b2",
+          "name": "Delete Lineage Edge",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/lineage/{{edge_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "lineage",
+                "{{edge_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "0bec85f6-e23e-4f67-a648-cabd76485002",
+          "name": "Get Upstream Assets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/lineage/{{asset_id}}/upstream",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "lineage",
+                "{{asset_id}}",
+                "upstream"
+              ],
+              "query": [
+                {
+                  "key": "max_depth",
+                  "value": "10",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns all assets that feed INTO this asset (recursive BFS)"
+          },
+          "response": []
+        },
+        {
+          "id": "b3005b4c-f42a-4aaa-8d3a-880f69ba5d9e",
+          "name": "Get Downstream Assets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/lineage/{{asset_id}}/downstream",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "lineage",
+                "{{asset_id}}",
+                "downstream"
+              ],
+              "query": [
+                {
+                  "key": "max_depth",
+                  "value": "10",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns all assets this asset feeds INTO (recursive BFS)"
+          },
+          "response": []
+        },
+        {
+          "id": "f357db94-0652-4125-a21e-0a974f879f9f",
+          "name": "Get Lineage Graph",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/lineage/{{asset_id}}/graph",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "lineage",
+                "{{asset_id}}",
+                "graph"
+              ],
+              "query": [
+                {
+                  "key": "max_depth",
+                  "value": "5",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Full graph (nodes + edges) for UI visualisation"
           },
           "response": []
         }

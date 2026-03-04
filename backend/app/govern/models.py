@@ -759,3 +759,26 @@ class ColumnProfile(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     profile = relationship("DataAssetProfile", back_populates="column_profiles")
+
+
+# ---------------------------------------------------------------------------
+# LineageEdge  (directed edge in the data lineage graph)
+# ---------------------------------------------------------------------------
+
+class LineageEdge(Base):
+    __tablename__ = "lineage_edges"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    source_asset_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_assets.id", ondelete="CASCADE"), nullable=False)
+    target_asset_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_assets.id", ondelete="CASCADE"), nullable=False)
+    # edge_type: direct | derived | copy | aggregated
+    edge_type = Column(String(50), nullable=False, default="direct")
+    # SQL snippet or free-text description of the transformation
+    transformation = Column(Text, nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    source_asset = relationship("DataAsset", foreign_keys=[source_asset_id])
+    target_asset = relationship("DataAsset", foreign_keys=[target_asset_id])
