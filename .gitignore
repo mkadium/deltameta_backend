@@ -10,8 +10,8 @@
 /backend/telemetry_logs/*.log
 
 # Local secrets / env
-/.env
-/backend/.env
+# /.env
+# /backend/.env
 
 # Development virtualenv and caches
 /backend/venv/

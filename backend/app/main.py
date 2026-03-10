@@ -32,22 +32,25 @@ app = FastAPI(
 )
 logger = logging.getLogger("deltameta")
 
-# CORS — allow frontend origins (localhost + Vercel + optional CORS_ORIGINS env)
-_origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+# CORS — allow any origin (set allow_origins=["*"] for open access)
+# For production, use CORS_ORIGINS env (comma-separated) to restrict.
 try:
     from app.settings import settings
     if settings.cors_origins:
-        _origins.extend(o.strip() for o in settings.cors_origins.split(",") if o.strip())
+        _origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+        _origins.extend(["http://localhost:3000", "http://127.0.0.1:3000"])
+        _allow_creds = True
+    else:
+        _origins = ["*"]
+        _allow_creds = False  # required when using "*"
 except Exception:
-    pass
+    _origins = ["*"]
+    _allow_creds = False
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",
-    allow_credentials=True,
+    allow_origin_regex=r"https://.*\.vercel\.app" if _origins != ["*"] else None,
+    allow_credentials=_allow_creds,
     allow_methods=["*"],
     allow_headers=["*"],
 )
