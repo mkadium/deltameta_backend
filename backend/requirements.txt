@@ -46,12 +46,11 @@ pyarrow==18.1.0
 weaviate-client==4.11.2
 openai==1.66.3
 anthropic==0.43.0
-# OpenTelemetry
+# OpenTelemetry (excluded OTLP gRPC exporter — causes protobuf conflict with grpcio)
+# Tracing uses FileTelemetryExporter only; OTLP exporters not used.
 opentelemetry-api==1.26.0
 opentelemetry-sdk==1.26.0
 opentelemetry-instrumentation-fastapi==0.47b0
 opentelemetry-instrumentation-sqlalchemy==0.47b0
 opentelemetry-instrumentation-asyncpg==0.47b0
 opentelemetry-instrumentation-logging==0.47b0
-opentelemetry-exporter-otlp==1.26.0
-opentelemetry-exporter-otlp-proto-grpc==1.26.0

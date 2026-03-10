@@ -1,0 +1,6 @@
+# Force Vercel to use requirements.txt instead of pyproject.toml
+# See: https://github.com/vercel/vercel/issues/14041
+# When both exist with no lockfile, Vercel 48.2+ prefers pyproject.toml
+# but may fail to install deps or hit ResolutionImpossible.
+pyproject.toml
+poetry.lock

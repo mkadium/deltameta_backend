@@ -1,0 +1,32 @@
+# Slim requirements for Vercel deployment.
+# Use when requirements.txt causes pip ResolutionImpossible.
+# Excludes: celery, flower, redis, minio, boto3, trino, pyiceberg,
+# rdflib, pandas, pyarrow, weaviate, openai, anthropic, opentelemetry.
+# Ingest/upload (pandas/minio) and run-bot (celery) will be disabled on Vercel.
+# See DEPLOY_VERCEL.md for Install Command override.
+
+# Core
+fastapi>=0.100,<0.140
+uvicorn[standard]>=0.20,<0.45
+starlette>=0.27,<0.55
+pydantic[email]>=2.0,<3
+pydantic-settings>=2.0,<3
+python-dotenv>=1.0
+PyYAML>=6.0
+
+# DB
+sqlalchemy[asyncio]>=2.0,<2.1
+asyncpg>=0.28,<0.30
+alembic>=1.11
+
+# Auth
+python-jose[cryptography]>=3.3
+passlib[bcrypt]>=1.7
+bcrypt>=4.0
+python-multipart>=0.0.9
+
+# HTTP / logging
+httpx>=0.24,<0.30
+prometheus-client>=0.17
+python-json-logger>=2.0
+gunicorn>=21.0

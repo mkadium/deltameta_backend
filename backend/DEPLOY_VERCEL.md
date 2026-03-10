@@ -86,3 +86,20 @@ After deploy, open your deployment URL (e.g. `https://deltameta-xxx.vercel.app`)
 - **500 / Internal Server Error**: Check Vercel Function logs (Dashboard → Project → Logs).
 - **Database connection errors**: Verify env vars in Vercel match your DB (and that the DB allows Vercel's IPs if using a private host).
 - **Import errors**: Ensure `requirements.txt` includes all dependencies; run `vercel dev` locally to test.
+
+### pip ResolutionImpossible
+
+If the build fails with `ERROR: ResolutionImpossible`, this is usually caused by:
+
+1. **pyproject.toml vs requirements.txt** — Vercel 48.2+ prefers `pyproject.toml` when both exist. A `.vercelignore` file is included to exclude `pyproject.toml` and force use of `requirements.txt`.
+
+2. **Dependency conflicts** — The full `requirements.txt` includes heavy packages (celery, pandas, pyarrow, opentelemetry, etc.) that can cause resolution conflicts on Vercel's build environment.
+
+**Fix (option A):** Redeploy after adding `.vercelignore` (excludes pyproject.toml). This often resolves the issue.
+
+**Fix (option B):** If it still fails, use the slim requirements:
+- In Vercel Dashboard → Project Settings → General → Build & Development Settings
+- Set **Install Command** to: `pip install -r requirements-vercel.txt`
+- Redeploy
+
+`requirements-vercel.txt` includes only core API dependencies. The following features are disabled on Vercel: file ingest (pandas/minio), bot run (celery), OpenTelemetry tracing, Trino/MinIO/Weaviate integrations. Use Docker for full functionality.
