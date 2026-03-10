@@ -19,7 +19,8 @@ Deltameta is a **Data Catalog & Governance Platform**. It is an inventory system
 Step 1: Admin sets up org, teams, roles, ABAC policies
 Step 2: Admin connects infrastructure (external Postgres, MinIO/S3, Trino, Spark, Airflow, Iceberg)
 Step 3: Admin or Data Owners configure and run Bots → catalog auto-populated
-Step 4: Users upload files (CSV/Excel) or create Catalog Views from external connections
+Step 4: Users upload files (CSV/Excel) and show them under Files->list of uploaded files (Fetch
+ from MinIO/S3) or create Catalog Views from external connections
          → data stored in MinIO/S3, schema in Iceberg + Postgres, DataAsset created in catalog
 Step 5: Users query data via Trino SQL engine → reads Iceberg schema + MinIO/S3 data
 Step 6: Users write PySpark notebooks → execute directly or schedule as pipeline via Airflow
@@ -583,9 +584,90 @@ The gap: config is stored, but no actual API calls to these services exist yet. 
 
 ---
 
+### Create in Data Tab — Unified Flow (Cross-Cutting)
+
+**Principle:** User does not write transformation logic by default. When a user asks to "create a dataset" or "create a view" that lands in the Data tab, a process runs in a pipeline (extract → ingest to MinIO/S3). We already have metadata from bots. If the user wants transformation, they write it in a notebook, save as Spark job, and configure in Airflow — we automate DAG creation.
+
+**Two Flows:**
+
+| Flow | User Action | Backend | Result |
+|------|-------------|---------|--------|
+| **A — No transformation** | Select source (Databases/Files/Catalog View) → "Create in Data tab" | Pipeline runs (Airflow DAG): extract → ingest to MinIO/S3 → register in Iceberg + Postgres | DataAsset appears in Data tab |
+| **B — With transformation** | Write PySpark in notebook → "Save as Spark Job" → configure output + schedule | Auto-generate Airflow DAG → Spark executes notebook → callback registers output | DataAsset appears in Data tab |
+
+**New model: `CreateDatasetJob`**
+
+```
+CreateDatasetJob
+  id, org_id
+  triggered_by (FK → users)
+  source_type   — connection | file_upload | file_in_storage | catalog_view | pipeline_output
+  source_config (JSONB — connection_id, database, schema, object, storage_config_id, bucket, object_key, etc.)
+  dataset_id (nullable FK → datasets)
+  asset_id (nullable FK → data_assets — created when job completes)
+  status       — pending | running | success | failed | cancelled
+  pipeline_type — ingest | sync | copy | spark_transform
+  external_job_id (nullable — Airflow dag_run_id or Celery task_id)
+  error_message (nullable)
+  created_at, completed_at
+```
+
+**Unified API Endpoints:**
+
+```
+POST /explore/create-dataset
+  Body: {
+    source_type: "connection" | "file_upload" | "file_in_storage" | "catalog_view",
+    source_config: { ... },
+    dataset_name: string,
+    dataset_id?: uuid,
+    asset_name?: string,
+    description?: string,
+    sync_mode?: "on_demand" | "scheduled",
+    cron_expr?: string
+  }
+  Returns: { job_id, status: "pending", message: "Create dataset pipeline started" }
+
+GET  /explore/create-dataset/jobs/{job_id}    Poll status (progress, asset_id when done)
+GET  /explore/create-dataset/jobs             List recent create-dataset jobs
+```
+
+**Notebook → Pipeline → Data Tab (Flow B):**
+
+```
+POST /notebooks/{path}/create-pipeline
+  Body: {
+    pipeline_name: string,
+    output_dataset_name: string,
+    output_path: string,
+    source_asset_ids?: uuid[],
+    schedule: "on_demand" | "scheduled",
+    cron_expr?: string
+  }
+  Backend:
+    1. Creates PipelineDefinition (executor_type=spark, notebook_path=...)
+    2. Generates Airflow DAG Python file (SparkSubmitOperator + callback task)
+    3. Writes DAG to Airflow dags folder (shared volume mount)
+    4. DAG structure: run_notebook >> register_asset  (sequence via >> operator)
+  Returns: { pipeline_id, dag_id }
+
+POST /integrations/pipelines/callback
+  Called by Airflow DAG's last task on completion.
+  Body: { pipeline_run_id, status, output_path, output_schema, row_count }
+  Creates/updates DataAsset in Data tab.
+```
+
+**DAG Sequence Configuration:** The execution order is defined in the generated DAG Python file. We write tasks and chain them with `>>` (e.g. `run_notebook >> register_asset`). Airflow parses the file and executes tasks in that order. No separate "sequence config API" — the DAG file is the config. Volume mount: Deltameta (or Celery task) writes the generated `.py` file to the shared `airflow-dags` volume; Airflow scheduler picks it up within seconds.
+
+**Migration:** `0017_create_dataset_job` — adds `create_dataset_jobs` table.
+
+---
+
 ### Module 0 — Data Ingest (File Upload → Catalog)
 
 **Files:** `backend/app/ingest/router.py`, `backend/agents/ingest_agent.py`
+
+**Note:** Ingest is one source type for the unified "Create in Data tab" flow. `POST /ingest/upload` + `confirm` creates an `IngestJob`; the unified `POST /explore/create-dataset` with `source_type: "file_upload"` can delegate to this flow and create a `CreateDatasetJob` record for tracking.
 
 **Flow:**
 
@@ -694,10 +776,12 @@ DELETE /catalog-views/{id}                          Delete
 POST   /catalog-views/{id}/sync                     Trigger on-demand sync
 GET    /catalog-views/{id}/sync-history             Sync run history
 
-# Connection Explorer (browse external connection objects before creating a view)
-GET    /service-endpoints/{conn_id}/explore/schemas          List schemas in external Postgres
-GET    /service-endpoints/{conn_id}/explore/{schema}/objects List tables/views/matviews in schema
-GET    /service-endpoints/{conn_id}/explore/{schema}/{object} Schema preview of the object
+# Connection Explorer — Hierarchy: connection_type → connection_name → databases → schema → objects
+GET    /service-endpoints/{conn_id}/explore/databases        List databases (for connection)
+GET    /service-endpoints/{conn_id}/explore/{db}/schemas     List schemas in database
+GET    /service-endpoints/{conn_id}/explore/{db}/{schema}/objects  List tables/views/matviews
+GET    /service-endpoints/{conn_id}/explore/{db}/{schema}/{object}  Schema preview + columns + sample
+POST   /service-endpoints/{conn_id}/explore/{db}/{schema}/{object}/create-dataset  Create in Data tab
 ```
 
 **Migration:** `0016_ingest_and_catalog_views` — adds `ingest_jobs`, `catalog_views` tables + `source_type` column on `data_assets`.
@@ -719,23 +803,28 @@ User writes PySpark code
   → Runs cell → executes directly in Spark (via SparkSession connected to Iceberg + MinIO/S3)
   → Output shown in notebook
 
-User clicks "Create Pipeline from Notebook"
+User clicks "Create Pipeline from Notebook" or "Save as Spark Job"
+  → Modal: pipeline name, output dataset name, output path, schedule (on-demand or cron)
+  → Backend auto-generates Airflow DAG (write Python file to dags folder via volume mount)
+  → DAG sequence: run_notebook >> register_asset (defined in generated DAG via >> operator)
   → Pipeline definition created (executor_type = spark, source = notebook)
-  → Schedule via Airflow (on-demand or cron)
-  → Appears in Pipelines page in catalog
-  → On run completion: auto-create LineageEdges + trigger QualityRuns on output assets
+  → On DAG completion: Airflow calls POST /integrations/pipelines/callback → DataAsset created in Data tab
+  → Optional: auto-create LineageEdges + trigger QualityRuns on output assets
 ```
+
+**DAG Generation:** We write a Python file to Airflow's dags folder (shared volume). The file defines task order via `run_notebook >> register_asset`. Airflow parses it and runs tasks in sequence. No Airflow API for creating DAGs — volume mount is the standard approach.
 
 **No new model needed** — notebooks are stored in MinIO/S3 (`notebooks/` prefix) and referenced as a `PipelineDefinition` with `executor_type = spark` and `notebook_path` in `config` JSONB.
 
 **Endpoints (addition to existing Pipelines API):**
 
 ```
-POST   /notebooks/upload             Upload .ipynb file → store in MinIO/S3
-GET    /notebooks                    List notebooks for org
-DELETE /notebooks/{path}             Delete notebook
-POST   /notebooks/{path}/run         Execute notebook directly in Spark (ad-hoc)
-GET    /notebooks/{path}/runs/{id}   Run output + logs
+POST   /notebooks/upload                  Upload .ipynb file → store in MinIO/S3
+GET    /notebooks                         List notebooks for org
+DELETE /notebooks/{path}                  Delete notebook
+POST   /notebooks/{path}/run              Execute notebook directly in Spark (ad-hoc)
+GET    /notebooks/{path}/runs/{id}        Run output + logs
+POST   /notebooks/{path}/create-pipeline  Save as Spark job → auto-create Airflow DAG → register on completion
 ```
 
 ---
@@ -964,9 +1053,13 @@ GET/PUT/DELETE /pipelines/{id}
 POST           /pipelines/{id}/run          Trigger pipeline (calls Airflow/Spark trigger)
 GET            /pipelines/{id}/runs         Run history
 GET            /pipelines/{id}/runs/{run_id}  Run detail + steps
+
+POST           /integrations/pipelines/callback   Called by Airflow DAG on completion
+                 Body: { pipeline_run_id, status, output_path, output_schema, row_count }
+                 Creates DataAsset in Data tab from pipeline output
 ```
 
-On run completion: if `auto_lineage = true` → auto-create `LineageEdge` per step. If `auto_quality = true` → trigger `QualityRun` on all target assets.
+On run completion: Airflow DAG's last task calls `POST /integrations/pipelines/callback` to register output as DataAsset. If `auto_lineage = true` → auto-create `LineageEdge` per step. If `auto_quality = true` → trigger `QualityRun` on all target assets.
 
 ---
 
@@ -1309,8 +1402,9 @@ ollama: # Self-hosted LLM — llama3/mistral/deepseek-r1 (port 11434)
 | 0014 | `lineage_edges`                       | P2/M3  | LineageEdge                                                           |
 | 0015 | `quality_test_cases_suites_incidents` | P2/M4  | QualityTestCase + QualityTestSuite + QualityTestRun + QualityIncident |
 | 0016 | `ingest_and_catalog_views`            | P3/M0  | IngestJob + CatalogView + `source_type` on `data_assets`              |
-| 0017 | `pipelines`                           | P3/M8  | PipelineDefinition + PipelineRun + PipelineStep                       |
-| 0018 | `chat_sessions_messages`              | P4/M3  | ChatSession + ChatMessage (per-user, per-org)                         |
+| 0017 | `create_dataset_job`                 | P3     | CreateDatasetJob table (unified create-dataset flow tracking)          |
+| 0018 | `pipelines`                           | P3/M8  | PipelineDefinition + PipelineRun + PipelineStep                       |
+| 0019 | `chat_sessions_messages`              | P4/M3  | ChatSession + ChatMessage (per-user, per-org)                         |
 
 ---
 
@@ -1352,7 +1446,12 @@ ollama: # Self-hosted LLM — llama3/mistral/deepseek-r1 (port 11434)
 - [ ] M0b: Catalog View API — create from external connection, sync on-demand/scheduled
 - [ ] M0b: Connection Explorer endpoints on `service-endpoints` router
 - [ ] M0c: Notebooks API — upload, list, run (PySpark via Spark), create pipeline from notebook
+- [ ] M0c: `POST /notebooks/{path}/create-pipeline` — save as Spark job, auto-generate Airflow DAG (volume mount)
 - [ ] M0c: Jupyter embed (attempt option A) or redirect (option B)
+- [ ] Create in Data tab: `CreateDatasetJob` model + migration 0017
+- [ ] Create in Data tab: `POST /explore/create-dataset` unified endpoint (all source types)
+- [ ] Create in Data tab: `GET /explore/create-dataset/jobs/{id}` + list
+- [ ] Pipelines: `POST /integrations/pipelines/callback` — Airflow DAG calls on completion to register DataAsset
 - [ ] M1: Trino integration API
 - [ ] M2: Spark integration API
 - [ ] M3: Airflow integration API

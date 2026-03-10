@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.setting_nodes.models import (
     OrgSettingOverride, SettingNode, SettingPolicy, UserSettingOverride,
 )
-from app.auth.models import Policy, User
+from app.auth.models import Policy, User, user_policies, user_roles, role_policies
 
 
 # ---------------------------------------------------------------------------
@@ -83,14 +83,34 @@ async def get_node_policies_map(
 
 
 async def get_user_policy_ids(db: AsyncSession, user: User) -> set:
-    """Return set of policy_ids the user has (via direct assignment or roles)."""
-    # Direct user policies
-    direct_ids = {str(p.id) for p in (user.policies or [])}
-    # Role policies
-    for role in (user.roles or []):
-        for p in (role.policies or []):
-            direct_ids.add(str(p.id))
-    return direct_ids
+    """
+    Return set of policy_ids the user has (via direct assignment or roles).
+
+    Uses explicit queries on association tables to avoid lazy-loading
+    relationship attributes (e.g. role.policies), which fails in async
+    SQLAlchemy with MissingGreenlet.
+    """
+    policy_ids: set = set()
+
+    # Direct user policies (user_policies table)
+    r1 = await db.execute(
+        select(user_policies.c.policy_id).where(user_policies.c.user_id == user.id)
+    )
+    for pid in r1.scalars():
+        policy_ids.add(str(pid))
+
+    # Policy IDs from roles (user_roles -> role_policies)
+    r2 = await db.execute(
+        select(role_policies.c.policy_id).where(
+            role_policies.c.role_id.in_(
+                select(user_roles.c.role_id).where(user_roles.c.user_id == user.id)
+            )
+        )
+    )
+    for pid in r2.scalars():
+        policy_ids.add(str(pid))
+
+    return policy_ids
 
 
 # ---------------------------------------------------------------------------
