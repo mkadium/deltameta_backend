@@ -92,6 +92,8 @@ try:
     from app.integrations.db_explore_router import router as db_explore_router
     from app.integrations.pipelines_router import router as pipelines_router
     from app.integrations.trino_router import router as trino_router
+    from app.integrations.spark_router import router as spark_router
+    from app.integrations.airflow_router import router as airflow_router
     from app.explore.router import router as explore_router
 except Exception:
     from .auth.router import router as auth_router
@@ -129,6 +131,8 @@ except Exception:
     from .integrations.db_explore_router import router as db_explore_router
     from .integrations.pipelines_router import router as pipelines_router
     from .integrations.trino_router import router as trino_router
+    from .integrations.spark_router import router as spark_router
+    from .integrations.airflow_router import router as airflow_router
     from .explore.router import router as explore_router
 
 app.include_router(auth_router)
@@ -166,6 +170,8 @@ app.include_router(catalog_views_router)
 app.include_router(db_explore_router)
 app.include_router(pipelines_router)
 app.include_router(trino_router)
+app.include_router(spark_router)
+app.include_router(airflow_router)
 app.include_router(explore_router)
 
 # Initialize OpenTelemetry tracing (optional)

@@ -161,6 +161,37 @@ async def _trino_execute(
         return {"columns": columns, "rows": rows}
 
 
+async def _trino_get(
+    ep: ServiceEndpoint,
+    path: str,
+) -> Dict[str, Any]:
+    base_url = ep.base_url.rstrip("/")
+    url = f"{base_url}{path}"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.get(url)
+        if resp.status_code >= 400:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Trino management error: {resp.text}",
+            )
+        return resp.json()
+
+
+async def _trino_delete(
+    ep: ServiceEndpoint,
+    path: str,
+) -> None:
+    base_url = ep.base_url.rstrip("/")
+    url = f"{base_url}{path}"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.delete(url)
+        if resp.status_code >= 400:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Trino cancel error: {resp.text}",
+            )
+
+
 @router.get(
     "/catalogs",
     response_model=List[CatalogItem],
@@ -292,4 +323,96 @@ async def run_query(
         max_rows=max_rows,
     )
     return TrinoQueryResponse(columns=result["columns"], rows=result["rows"])
+
+
+class TrinoQuerySummary(BaseModel):
+    queryId: str
+    state: Optional[str] = None
+    query: Optional[str] = None
+    user: Optional[str] = None
+    source: Optional[str] = None
+    catalog: Optional[str] = None
+    schema: Optional[str] = None
+
+
+@router.get(
+    "/queries",
+    response_model=List[TrinoQuerySummary],
+    dependencies=[Depends(require_permission("service_endpoint", "read"))],
+)
+async def list_queries(
+    endpoint_id: Optional[uuid.UUID] = Query(
+        None, description="Optional ServiceEndpoint ID; defaults to org's trino_ui."
+    ),
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    """
+    List recent queries from Trino coordinator.
+    """
+    ep = await _get_trino_endpoint(db, user, endpoint_id)
+    data = await _trino_get(ep, "/v1/query")
+    items: List[TrinoQuerySummary] = []
+    for q in data or []:
+        items.append(
+            TrinoQuerySummary(
+                queryId=q.get("queryId") or q.get("id"),
+                state=q.get("state"),
+                query=q.get("query"),
+                user=q.get("session", {}).get("user"),
+                source=q.get("session", {}).get("source"),
+                catalog=q.get("session", {}).get("catalog"),
+                schema=q.get("session", {}).get("schema"),
+            )
+        )
+    return items
+
+
+@router.get(
+    "/queries/{query_id}",
+    response_model=TrinoQuerySummary,
+    dependencies=[Depends(require_permission("service_endpoint", "read"))],
+)
+async def get_query(
+    query_id: str,
+    endpoint_id: Optional[uuid.UUID] = Query(
+        None, description="Optional ServiceEndpoint ID; defaults to org's trino_ui."
+    ),
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    """
+    Get status for a specific Trino query.
+    """
+    ep = await _get_trino_endpoint(db, user, endpoint_id)
+    q = await _trino_get(ep, f"/v1/query/{query_id}")
+    return TrinoQuerySummary(
+        queryId=q.get("queryId") or q.get("id") or query_id,
+        state=q.get("state"),
+        query=q.get("query"),
+        user=q.get("session", {}).get("user"),
+        source=q.get("session", {}).get("source"),
+        catalog=q.get("session", {}).get("catalog"),
+        schema=q.get("session", {}).get("schema"),
+    )
+
+
+@router.delete(
+    "/queries/{query_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_permission("service_endpoint", "update"))],
+)
+async def cancel_query(
+    query_id: str,
+    endpoint_id: Optional[uuid.UUID] = Query(
+        None, description="Optional ServiceEndpoint ID; defaults to org's trino_ui."
+    ),
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_session),
+):
+    """
+    Cancel a running Trino query.
+    """
+    ep = await _get_trino_endpoint(db, user, endpoint_id)
+    await _trino_delete(ep, f"/v1/query/{query_id}")
 
