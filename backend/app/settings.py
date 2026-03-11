@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     otel_traces_sampler: str = "always_on"
     otel_environment: str = "development"
 
+    # Pipeline callback auth
+    pipeline_callback_token: Optional[str] = None
+
     class Config:
         env_file = ".env"
         env_prefix = ""

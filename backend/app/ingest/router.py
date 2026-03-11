@@ -30,7 +30,12 @@ from app.auth.dependencies import get_active_org_id, require_active_user
 from app.auth.abac import require_permission
 from app.auth.models import User
 from app.govern.models import (
-    DataAsset, DataAssetColumn, Dataset, IngestJob, StorageConfig,
+    DataAsset,
+    DataAssetColumn,
+    Dataset,
+    IngestJob,
+    OrgStorageIngestConfig,
+    StorageConfig,
 )
 
 router = APIRouter(prefix="/ingest", tags=["Data Ingest"])
@@ -236,7 +241,13 @@ async def _get_job_or_404(job_id: uuid.UUID, org_id: uuid.UUID, session: AsyncSe
              summary="Upload a file and trigger schema inference")
 async def upload_file(
     file: UploadFile = File(..., description="CSV, TSV, Excel, JSON, or Parquet file"),
-    storage_config_id: Optional[uuid.UUID] = Form(None, description="StorageConfig ID for MinIO/S3 destination"),
+    storage_config_id: Optional[uuid.UUID] = Form(
+        None,
+        description=(
+            "DEPRECATED: explicit StorageConfig ID. "
+            "Use /org/storage-ingest-config for org-level default instead."
+        ),
+    ),
     user: User = Depends(require_active_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -260,17 +271,58 @@ async def upload_file(
     # Infer schema + preview
     schema, preview = _infer_schema_and_preview(content, file_type, file.filename or "upload")
 
-    # Resolve storage config
+    # Resolve storage config via org-level ingest config (preferred),
+    # falling back to explicit storage_config_id for backward compatibility.
     storage = None
     bucket = None
+
     if storage_config_id:
+        # Legacy path: explicit StorageConfig
         r = await session.execute(
-            select(StorageConfig).where(StorageConfig.id == storage_config_id, StorageConfig.org_id == org_id)
+            select(StorageConfig).where(
+                StorageConfig.id == storage_config_id,
+                (StorageConfig.org_id == org_id) | (StorageConfig.org_id.is_(None)),
+                StorageConfig.is_active == True,
+            )
         )
         storage = r.scalar_one_or_none()
         if not storage:
-            raise HTTPException(status_code=404, detail="StorageConfig not found")
-        bucket = storage.extra.get("default_ingest_bucket", f"deltameta-ingest-{str(org_id)[:8]}")
+            raise HTTPException(status_code=404, detail="StorageConfig not found or inactive")
+        bucket = storage.bucket or storage.extra.get(
+            "default_ingest_bucket",
+            f"deltameta-ingest-{str(org_id)[:8]}",
+        )
+    else:
+        # Preferred path: org-level ingest config
+        cfg_result = await session.execute(
+            select(OrgStorageIngestConfig).where(OrgStorageIngestConfig.org_id == org_id)
+        )
+        cfg = cfg_result.scalar_one_or_none()
+        if not cfg:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Org storage ingest config is not set. "
+                    "Org admin must configure /org/storage-ingest-config before uploading files."
+                ),
+            )
+
+        sc_result = await session.execute(
+            select(StorageConfig).where(
+                StorageConfig.id == cfg.storage_config_id,
+                (StorageConfig.org_id == org_id) | (StorageConfig.org_id.is_(None)),
+                StorageConfig.is_active == True,
+            )
+        )
+        storage = sc_result.scalar_one_or_none()
+        if not storage:
+            raise HTTPException(
+                status_code=400,
+                detail="Org storage ingest config references an invalid or inactive StorageConfig.",
+            )
+
+        storage_config_id = storage.id  # record it on the job
+        bucket = cfg.bucket
 
     job = IngestJob(
         id=uuid.uuid4(),

@@ -257,7 +257,7 @@ async def list_role_users(
     result = await session.execute(
         select(User)
         .where(User.org_id == get_active_org_id(current_user))
-        .options(selectinload(User.roles))
+        .options(selectinload(User.roles), selectinload(User.teams))
     )
     users = result.scalars().all()
     return [u for u in users if any(r.id == role_id for r in u.roles)]

@@ -534,6 +534,25 @@ class StorageConfig(Base):
 
 
 # ---------------------------------------------------------------------------
+# OrgStorageIngestConfig
+# ---------------------------------------------------------------------------
+
+
+class OrgStorageIngestConfig(Base):
+    __tablename__ = "org_storage_ingest_config"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False, unique=True)
+    storage_config_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.storage_config.id", ondelete="SET NULL"), nullable=True)
+    bucket = Column(String(255), nullable=False)
+    prefix = Column(String(512), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    storage_config = relationship("StorageConfig", foreign_keys=[storage_config_id])
+
+# ---------------------------------------------------------------------------
 # ServiceEndpoint
 # ---------------------------------------------------------------------------
 
@@ -1019,3 +1038,38 @@ class CatalogView(Base):
 
     asset = relationship("DataAsset", foreign_keys=[asset_id])
     source_connection = relationship("ServiceEndpoint", foreign_keys=[source_connection_id])
+
+
+# ---------------------------------------------------------------------------
+# CreateDatasetJob  (Phase 3 — unified Create in Data tab tracking)
+# ---------------------------------------------------------------------------
+
+
+class CreateDatasetJob(Base):
+    __tablename__ = "create_dataset_jobs"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organizations.id", ondelete="CASCADE"), nullable=False)
+    triggered_by = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+
+    # source_type: connection | file_upload | file_in_storage | catalog_view | pipeline_output
+    source_type = Column(String(50), nullable=False)
+    source_config = Column(JSONB, nullable=False, default=dict)
+
+    dataset_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.datasets.id", ondelete="SET NULL"), nullable=True)
+    asset_id = Column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.data_assets.id", ondelete="SET NULL"), nullable=True)
+
+    # pipeline_type: ingest | sync | copy | spark_transform
+    pipeline_type = Column(String(50), nullable=False, default="ingest")
+
+    # status: pending | running | success | failed | cancelled
+    status = Column(String(30), nullable=False, default="pending")
+    external_job_id = Column(String(255), nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    dataset = relationship("Dataset", foreign_keys=[dataset_id])
+    asset = relationship("DataAsset", foreign_keys=[asset_id])

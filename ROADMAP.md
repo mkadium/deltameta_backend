@@ -1402,9 +1402,9 @@ ollama: # Self-hosted LLM — llama3/mistral/deepseek-r1 (port 11434)
 | 0014 | `lineage_edges`                       | P2/M3  | LineageEdge                                                           |
 | 0015 | `quality_test_cases_suites_incidents` | P2/M4  | QualityTestCase + QualityTestSuite + QualityTestRun + QualityIncident |
 | 0016 | `ingest_and_catalog_views`            | P3/M0  | IngestJob + CatalogView + `source_type` on `data_assets`              |
-| 0017 | `create_dataset_job`                 | P3     | CreateDatasetJob table (unified create-dataset flow tracking)          |
-| 0018 | `pipelines`                           | P3/M8  | PipelineDefinition + PipelineRun + PipelineStep                       |
-| 0019 | `chat_sessions_messages`              | P4/M3  | ChatSession + ChatMessage (per-user, per-org)                         |
+| 0017 | `create_dataset_job`                  | P3     | CreateDatasetJob table (unified create-dataset flow tracking)         |
+| 0018 | `create_dataset_job` (extended)       | P3     | Additional CreateDatasetJob tracking (already consolidated in models) |
+| 0019 | `org_storage_ingest_config`           | P3/M0  | OrgStorageIngestConfig table for ingest bucket mapping                |
 
 ---
 
@@ -1424,34 +1424,34 @@ ollama: # Self-hosted LLM — llama3/mistral/deepseek-r1 (port 11434)
 
 ### Phase 2
 
-- [ ] M2: `DataAssetProfile` + `ColumnProfile` models + migration 0013
-- [ ] M2: Profiling API (`backend/app/profiling/router.py`)
-- [ ] M2: ScheduledTask API (`backend/app/scheduled_tasks/router.py`)
-- [ ] M3: `LineageEdge` model + migration 0014
-- [ ] M3: Lineage API (`backend/app/lineage/router.py`)
-- [ ] M4: `QualityTestCase` + `QualityTestSuite` + `QualityTestRun` + `QualityIncident` models + migration 0015
-- [ ] M4: Quality API with Test Cases, Test Suites (table + bundle), Incidents (`backend/app/quality/router.py`)
-- [ ] M4: TestSuit Bot (`bot_type = test_suite`) — add to Bots model enum + agent code
-- [ ] M5: `PolicyEvaluator` + `require_permission()` dependency
-- [ ] M5: Wire ABAC onto existing endpoints
-- [ ] M6: Search API (`backend/app/search/router.py`) — PG full-text
+- [x] M2: `DataAssetProfile` + `ColumnProfile` models + migration 0013
+- [x] M2: Profiling API (`backend/app/profiling/router.py`)
+- [x] M2: ScheduledTask API (`backend/app/scheduled_tasks/router.py`)
+- [x] M3: `LineageEdge` model + migration 0014
+- [x] M3: Lineage API (`backend/app/lineage/router.py`)
+- [x] M4: `QualityTestCase` + `QualityTestSuite` + `QualityTestRun` + `QualityIncident` models + migration 0015
+- [x] M4: Quality API with Test Cases, Test Suites (table + bundle), Incidents (`backend/app/quality/router.py`)
+- [x] M4: TestSuit Bot (`bot_type = test_suite`) — wired into Bots + Quality
+- [x] M5: `PolicyEvaluator` + `require_permission()` dependency
+- [x] M5: Wire ABAC onto core endpoints (datasets, data_assets, quality, search, ingest, profiling, lineage, bots)
+- [x] M6: Search API (`backend/app/search/router.py`) — PG full-text
 - [ ] Update Postman + push to all branches
 
 ### Phase 3
 
-- [ ] M0: File Ingest API — upload CSV/Excel → MinIO/S3 + Iceberg + Postgres + DataAsset creation
-- [ ] M0: Org storage ingest config (`PUT /org/storage-ingest-config`) — default bucket mapping
-- [ ] M0: Add `source_type` field to `DataAsset` + migration 0016
-- [ ] M0b: `CatalogView` model + migration 0016 (combined with ingest migration)
-- [ ] M0b: Catalog View API — create from external connection, sync on-demand/scheduled
-- [ ] M0b: Connection Explorer endpoints on `service-endpoints` router
+- [x] M0: File Ingest API — upload CSV/Excel → MinIO/S3 + Postgres + DataAsset creation (`backend/app/ingest/router.py`)
+- [x] M0: Org storage ingest config (`PUT /org/storage-ingest-config`) — default bucket mapping (`OrgStorageIngestConfig`)
+- [x] M0: Add `source_type` field to `DataAsset` + migration 0016
+- [x] M0b: `CatalogView` model + migration 0016/0017
+- [x] M0b: Catalog View API — create from external connection, sync on-demand/scheduled (`backend/app/catalog_views/router.py`)
+- [x] M0b: Connection Explorer endpoints on `service-endpoints` router (`backend/app/integrations/db_explore_router.py`)
 - [ ] M0c: Notebooks API — upload, list, run (PySpark via Spark), create pipeline from notebook
 - [ ] M0c: `POST /notebooks/{path}/create-pipeline` — save as Spark job, auto-generate Airflow DAG (volume mount)
 - [ ] M0c: Jupyter embed (attempt option A) or redirect (option B)
-- [ ] Create in Data tab: `CreateDatasetJob` model + migration 0017
-- [ ] Create in Data tab: `POST /explore/create-dataset` unified endpoint (all source types)
-- [ ] Create in Data tab: `GET /explore/create-dataset/jobs/{id}` + list
-- [ ] Pipelines: `POST /integrations/pipelines/callback` — Airflow DAG calls on completion to register DataAsset
+- [x] Create in Data tab: `CreateDatasetJob` model + migration 0017/0018
+- [x] Create in Data tab: `POST /explore/create-dataset` unified endpoint (all source types)
+- [x] Create in Data tab: `GET /explore/create-dataset/jobs/{id}` + list
+- [x] Pipelines: `POST /integrations/pipelines/callback` — external pipelines register completion (`integrations/pipelines_router.py`)
 - [ ] M1: Trino integration API
 - [ ] M2: Spark integration API
 - [ ] M3: Airflow integration API

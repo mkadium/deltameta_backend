@@ -36,7 +36,14 @@ from app.auth.models import (
     Subscription, Team, User, user_organizations,
     user_teams,
 )
-from app.govern.models import org_roles, org_policies, team_roles, team_policies
+from app.govern.models import (
+    org_roles,
+    org_policies,
+    team_roles,
+    team_policies,
+    OrgStorageIngestConfig,
+    StorageConfig,
+)
 from app.auth.schemas import (
     MessageResponse,
     OrgCreate,
@@ -854,6 +861,110 @@ async def update_profiler_config(
         .order_by(OrgProfilerConfig.datatype)
     )
     return result.scalars().all()
+
+
+# ===========================================================================
+# ORG STORAGE INGEST CONFIG
+# ===========================================================================
+
+
+class OrgStorageIngestConfigBody(BaseModel):
+    storage_config_id: uuid.UUID = Field(
+        ..., description="StorageConfig ID to use for file ingest (MinIO/S3)."
+    )
+    bucket: str = Field(..., description="Bucket name for ingest destination.")
+    prefix: Optional[str] = Field(
+        None,
+        description="Optional prefix within the bucket, e.g. 'ingest/{org_id}'.",
+    )
+
+
+class OrgStorageIngestConfigResponse(BaseModel):
+    org_id: uuid.UUID
+    storage_config_id: Optional[uuid.UUID]
+    bucket: str
+    prefix: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+@router.get(
+    "/org/storage-ingest-config",
+    response_model=OrgStorageIngestConfigResponse,
+    tags=["Organization"],
+    summary="Get storage ingest config for active org (admin only)",
+)
+async def get_org_storage_ingest_config(
+    user: User = Depends(require_org_admin),
+    db: AsyncSession = Depends(get_session),
+):
+    active_org = get_active_org_id(user)
+    result = await db.execute(
+        select(OrgStorageIngestConfig).where(OrgStorageIngestConfig.org_id == active_org)
+    )
+    cfg = result.scalar_one_or_none()
+    if not cfg:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Storage ingest config not set for this organization",
+        )
+    return cfg
+
+
+@router.put(
+    "/org/storage-ingest-config",
+    response_model=OrgStorageIngestConfigResponse,
+    tags=["Organization"],
+    summary="Set storage ingest config for active org (admin only)",
+)
+async def set_org_storage_ingest_config(
+    body: OrgStorageIngestConfigBody,
+    user: User = Depends(require_org_admin),
+    db: AsyncSession = Depends(get_session),
+):
+    active_org = get_active_org_id(user)
+
+    # Validate StorageConfig belongs to this org and is active
+    sc_result = await db.execute(
+        select(StorageConfig).where(
+            StorageConfig.id == body.storage_config_id,
+            (StorageConfig.org_id == active_org) | (StorageConfig.org_id.is_(None)),
+            StorageConfig.is_active == True,
+        )
+    )
+    storage_cfg = sc_result.scalar_one_or_none()
+    if not storage_cfg:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="StorageConfig not found or not active for this organization",
+        )
+
+    # Upsert OrgStorageIngestConfig for this org
+    existing_result = await db.execute(
+        select(OrgStorageIngestConfig).where(OrgStorageIngestConfig.org_id == active_org)
+    )
+    cfg = existing_result.scalar_one_or_none()
+
+    if cfg:
+        cfg.storage_config_id = body.storage_config_id
+        cfg.bucket = body.bucket
+        cfg.prefix = body.prefix
+        cfg.updated_at = datetime.now(timezone.utc)
+    else:
+        cfg = OrgStorageIngestConfig(
+            id=uuid.uuid4(),
+            org_id=active_org,
+            storage_config_id=body.storage_config_id,
+            bucket=body.bucket,
+            prefix=body.prefix,
+        )
+        db.add(cfg)
+
+    await db.commit()
+    await db.refresh(cfg)
+    return cfg
 
 
 # ===========================================================================

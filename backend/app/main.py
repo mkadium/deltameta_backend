@@ -88,6 +88,11 @@ try:
     from app.quality.router import router as quality_router
     from app.search.router import router as search_router
     from app.ingest.router import router as ingest_router
+    from app.catalog_views.router import router as catalog_views_router
+    from app.integrations.db_explore_router import router as db_explore_router
+    from app.integrations.pipelines_router import router as pipelines_router
+    from app.integrations.trino_router import router as trino_router
+    from app.explore.router import router as explore_router
 except Exception:
     from .auth.router import router as auth_router
     from .teams.router import router as teams_router
@@ -120,6 +125,11 @@ except Exception:
     from .quality.router import router as quality_router
     from .search.router import router as search_router
     from .ingest.router import router as ingest_router
+    from .catalog_views.router import router as catalog_views_router
+    from .integrations.db_explore_router import router as db_explore_router
+    from .integrations.pipelines_router import router as pipelines_router
+    from .integrations.trino_router import router as trino_router
+    from .explore.router import router as explore_router
 
 app.include_router(auth_router)
 app.include_router(teams_router)
@@ -152,6 +162,11 @@ app.include_router(lineage_router)
 app.include_router(quality_router)
 app.include_router(search_router)
 app.include_router(ingest_router)
+app.include_router(catalog_views_router)
+app.include_router(db_explore_router)
+app.include_router(pipelines_router)
+app.include_router(trino_router)
+app.include_router(explore_router)
 
 # Initialize OpenTelemetry tracing (optional)
 if setup_tracing:
